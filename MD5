@@ -1,0 +1,17 @@
+88d3ead75ca5e9cd576b1f4cfc15f8a2 *DESCRIPTION
+e2965db868cda3b9ce7b138d8ca0e6bc *LICENSE
+112ad7030ebf32ce085497a8c5c50867 *NAMESPACE
+f2d53756c77bb1af1fd2b059bf4747d5 *NEWS.md
+d8ffaace383a97e27113e10f2c66c8a0 *R/glue.R
+5b08b26995895d52d23cf420410af203 *R/utils.R
+0a2e16631e0b83e7c6da5936d855bb0a *README.md
+428090ffb747ed472a50927771a36cce *man/as_glue.Rd
+d10e30c9bc0e43bf0e6c26e0dc538912 *man/collapse.Rd
+d014a10170c1c8979bf16bc8153a02da *man/glue.Rd
+cb80548db4ef7abb94efcf3bdcd1747d *man/trim.Rd
+a41e55171f1057c59c6918125db1bc12 *src/glue.c
+8e86a37c581d05677b27d13d72fe09db *src/init.c
+7dc6fcc4d27368867ece2895c4dcfc9e *src/trim.c
+2b2d5c82e65ffac3ce2300a7ba32fa68 *tests/testthat.R
+f8eecfd20f6dbf7c62d1c2d1a6fe624e *tests/testthat/test-collapse.R
+df03c0a17c8cb74654a23d2953b054b6 *tests/testthat/test-glue.R
