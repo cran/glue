@@ -7,8 +7,12 @@ test_that("glue errors if the expression fails", {
   expect_error(glue("{NoTfOuNd}"), "object .* not found")
 })
 
-test_that("glue errors if invalid f-string", {
+test_that("glue errors if invalid format", {
   expect_error(glue("x={x"), "Expecting '}'")
+})
+
+test_that("glue returns length 1 string from length 1 input", {
+  expect_identical(as_glue(""), glue(""))
 })
 
 test_that("glue works with single expressions", {
@@ -140,12 +144,6 @@ test_that("recycle_columns returns if zero length input", {
   expect_identical(character(), recycle_columns(list(character())))
 })
 
-test_that("collapse works", {
-  expect_identical("", collapse(character(0)))
-
-  expect_identical("123", collapse(1:3))
-})
-
 test_that("glue_data evaluates in the object first, then enclosure, then parent", {
   x <- 1
   y <- 1
@@ -161,6 +159,14 @@ test_that("glue_data evaluates in the object first, then enclosure, then parent"
   # This environment
   env <- environment()
   expect_identical(as_glue("3 1 1"), fun(env))
+
+  # A new environment
+  env2 <- new.env(parent = emptyenv())
+  env2$x <- 3
+  env2$y <- 3
+  env2$z <- 3
+
+  expect_identical(as_glue("3 3 3"), glue_data(env2, "{x} {y} {z}"))
 })
 
 test_that("trim works", {
@@ -235,8 +241,66 @@ test_that("printing glue identical to cat()", {
 })
 
 test_that("length 0 inputs produce length 0 outputs", {
-  expect_identical(character(0), glue("foo", character(0)))
+  expect_identical(as_glue(character(0)), glue("foo", character(0)))
 
-  expect_identical(character(0), glue("foo", "{character(0)}"))
-  expect_identical(character(0), glue("foo {character(0)}"))
+  expect_identical(as_glue(character(0)), glue("foo", "{character(0)}"))
+  expect_identical(as_glue(character(0)), glue("foo {character(0)}"))
+})
+
+test_that("values are trimmed before evaluation", {
+
+  x <- " a1\n b2\n c3"
+
+  expect_identical(
+as_glue(
+"A
+ a1
+ b2
+ c3
+B"),
+glue("
+  A
+  {x}
+  B
+  "))
+})
+
+test_that("glue works with alternative delimiters", {
+  expect_identical(as_glue("{1}"), glue("{1}", .open = "", .close = ""))
+  expect_identical(as_glue("{{}}"), glue("{{}}", .open = "", .close = ""))
+
+  expect_identical(as_glue("1"), glue("<<1>>", .open = "<<", .close = ">>"))
+  expect_identical(as_glue("<<>>"), glue("<<<<>>>>", .open = "<<", .close = ">>"))
+
+  expect_identical(as_glue("1"), glue("{{1}}", .open = "{{", .close = "}}"))
+  expect_identical(as_glue("1"), glue("{{ {{1}} }}", .open = "{{", .close = "}}"))
+  expect_identical(as_glue("1"), glue("{{ {{{1}}} }}", .open = "{{", .close = "}}"))
+  expect_identical(as_glue("1"), glue("{{ {{{{1}}}} }}", .open = "{{", .close = "}}"))
+
+  expect_identical(as_glue("a"), glue("[letters[[1]]]", .open = "[", .close = "]"))
+
+  expect_identical(as_glue("a"), glue("[[ letters[[1]] ]]", .open = "[[", .close = "]]"))
+})
+
+test_that("glue always returns UTF-8 encoded strings regardless of input encodings", {
+  x <- "fa\xE7ile"
+  Encoding(x) <- "latin1"
+
+  x_out <- as_glue(enc2utf8(x))
+
+  expect_identical(x_out, glue(x))
+  expect_identical(x_out, glue("{x}"))
+
+  y <- "p\u00E4o"
+  Encoding(y) <- "UTF-8"
+
+  y_out <- as_glue(enc2utf8(y))
+
+  expect_identical(y_out, glue(y))
+  expect_identical(y_out, glue("{y}"))
+
+  xy_out <- as_glue(paste0(x_out, y_out))
+
+  expect_identical(xy_out, glue(x, y))
+  expect_identical(xy_out, glue("{x}{y}"))
 })

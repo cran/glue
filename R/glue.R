@@ -1,12 +1,17 @@
 #' Format and interpolate a string
 #'
 #' Expressions enclosed by braces will be evaluated as R code. Single braces
-#' can be inserted by doubling them. The inputs are not vectorized.
-#' @param .x An environment, list or data frame.
-#' @param ... String(s) to format, multiple inputs are concatenated together before formatting.
-#' @param .sep Separator used to separate elements.
-#' @param .envir Environment to evaluate each expression in. Expressions are
-#' evaluated from left to right.
+#' can be inserted by doubling them.
+#' @param .x \[`listish`]\cr An environment, list or data frame used to lookup values.
+#' @param ... \[`expressions`]\cr Expressions string(s) to format, multiple inputs are concatenated together before formatting.
+#' @param .sep \[`character(1)`: \sQuote{""}]\cr Separator used to separate elements.
+#' @param .envir \[`environment`: `parent.frame()`]\cr Environment to evaluate each expression in. Expressions are
+#' evaluated from left to right. If `.x` is an environment, the expressions are
+#' evaluated in that environment and `.envir` is ignored.
+#' @param .open \[`character(1)`: \sQuote{\\\{}]\cr The opening delimiter. Doubling the
+#' full delimiter escapes it.
+#' @param .close \[`character(1)`: \sQuote{\\\}}]\cr The closing delimiter. Doubling the
+#' full delimiter escapes it.
 #' @seealso <https://www.python.org/dev/peps/pep-0498/> and
 #' <https://www.python.org/dev/peps/pep-0257> upon which this is based.
 #' @examples
@@ -31,13 +36,22 @@
 #' # `glue_data()` is useful in magrittr pipes
 #' library(magrittr)
 #' mtcars %>% glue_data("{rownames(.)} has {hp} hp")
+#'
+#' # Alternative delimiters can also be used if needed
+#' one <- "1"
+#' glue("The value of $e^{2\\pi i}$ is $<<one>>$.", .open = "<<", .close = ">>")
 #' @useDynLib glue glue_
 #' @name glue
 #' @export
-glue_data <- function(.x, ..., .sep = "", .envir = parent.frame()) {
+glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}") {
 
   # Perform all evaluations in a temporary environment
-  env <- new.env(parent = .envir)
+  if (is.environment(.x)) {
+    env <- new.env(parent = .x)
+    .envir <- NULL
+  } else {
+    env <- new.env(parent = .envir)
+  }
 
   # Capture unevaluated arguments
   dots <- eval(substitute(alist(...)))
@@ -51,37 +65,36 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame()) {
 
   lengths <- lengths(unnamed_args)
   if (any(lengths == 0)) {
-    return(character(0))
+    return(as_glue(character(0)))
   }
   if (any(lengths != 1)) {
     stop("All unnamed arguments must be length 1", call. = FALSE)
   }
   unnamed_args <- paste0(unnamed_args, collapse = .sep)
+  unnamed_args <- trim(unnamed_args)
 
   # Parse any glue strings
-  res <- .Call(glue_, unnamed_args, function(expr) as.character(eval2(parse(text = expr), envir = env, data = .x)))
+  res <- .Call(glue_, unnamed_args,
+    function(expr)
+      enc2utf8(
+        as.character(
+          eval2(parse(text = expr), envir = env, data = .x))),
+      .open, .close)
+
   if (any(lengths(res) == 0)) {
-    return(character(0))
+    return(as_glue(character(0)))
   }
 
   res <- do.call(paste0, recycle_columns(res))
 
-  structure(trim(res), class = "glue")
+  as_glue(res)
 }
 
-#' @rdname glue
-#' @export
-to_data <- glue_data
-
 #' @export
 #' @rdname glue
-glue <- function(..., .sep = "", .envir = parent.frame()) {
-  glue_data(.x = NULL, ..., .sep = .sep, .envir = .envir)
+glue <- function(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}") {
+  glue_data(.x = NULL, ..., .sep = .sep, .envir = .envir, .open = .open, .close = .close)
 }
-
-#' @rdname glue
-#' @export
-to <- glue
 
 #' Collapse a character vector
 #'
@@ -101,6 +114,9 @@ to <- glue
 #' #> 1, 2, 3 and 4
 #' @export
 collapse <- function(x, sep = "", width = Inf, last = "") {
+  if (length(x) == 0) {
+    return(as_glue(character()))
+  }
   if (nzchar(last) && length(x) > 1) {
     res <- collapse(x[seq(1, length(x) - 1)], sep = sep, width = Inf)
     return(collapse(glue(res, last, x[length(x)]), width = width))
@@ -113,7 +129,7 @@ collapse <- function(x, sep = "", width = Inf, last = "") {
       x <- paste0(substr(x, 1, width - 3), "...")
     }
   }
-  x
+  as_glue(x)
 }
 
 #' Trim a character vector
@@ -152,6 +168,8 @@ trim <- function(x) {
 #' @export
 print.glue <- function(x, ..., sep = "\n") {
   cat(x, ..., sep = sep)
+
+  invisible(x)
 }
 
 #' Coerce object to glue
@@ -174,10 +192,14 @@ as_glue.glue <- function(x, ...) {
 
 #' @export
 as_glue.character <- function(x, ...) {
-  structure(x, class = "glue")
+  structure(x, class = c("glue", "character"))
 }
 
 #' @export
 as.character.glue <- function(x, ...) {
   unclass(x)
 }
+
+#' @importFrom methods setOldClass
+
+setOldClass(c("glue", "character"))

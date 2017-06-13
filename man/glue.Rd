@@ -3,32 +3,34 @@
 \name{glue}
 \alias{glue}
 \alias{glue_data}
-\alias{to_data}
 \alias{glue}
-\alias{to}
 \title{Format and interpolate a string}
 \usage{
-glue_data(.x, ..., .sep = "", .envir = parent.frame())
+glue_data(.x, ..., .sep = "", .envir = parent.frame(), .open = "{",
+  .close = "}")
 
-to_data(.x, ..., .sep = "", .envir = parent.frame())
-
-glue(..., .sep = "", .envir = parent.frame())
-
-to(..., .sep = "", .envir = parent.frame())
+glue(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}")
 }
 \arguments{
-\item{.x}{An environment, list or data frame.}
+\item{.x}{[\code{listish}]\cr An environment, list or data frame used to lookup values.}
 
-\item{...}{String(s) to format, multiple inputs are concatenated together before formatting.}
+\item{...}{[\code{expressions}]\cr Expressions string(s) to format, multiple inputs are concatenated together before formatting.}
 
-\item{.sep}{Separator used to separate elements.}
+\item{.sep}{[\code{character(1)}: \sQuote{""}]\cr Separator used to separate elements.}
 
-\item{.envir}{Environment to evaluate each expression in. Expressions are
-evaluated from left to right.}
+\item{.envir}{[\code{environment}: \code{parent.frame()}]\cr Environment to evaluate each expression in. Expressions are
+evaluated from left to right. If \code{.x} is an environment, the expressions are
+evaluated in that environment and \code{.envir} is ignored.}
+
+\item{.open}{[\code{character(1)}: \sQuote{\{}]\cr The opening delimiter. Doubling the
+full delimiter escapes it.}
+
+\item{.close}{[\code{character(1)}: \sQuote{\}}]\cr The closing delimiter. Doubling the
+full delimiter escapes it.}
 }
 \description{
 Expressions enclosed by braces will be evaluated as R code. Single braces
-can be inserted by doubling them. The inputs are not vectorized.
+can be inserted by doubling them.
 }
 \examples{
 name <- "Fred"
@@ -52,6 +54,10 @@ glue('My name is {name},',
 # `glue_data()` is useful in magrittr pipes
 library(magrittr)
 mtcars \%>\% glue_data("{rownames(.)} has {hp} hp")
+
+# Alternative delimiters can also be used if needed
+one <- "1"
+glue("The value of $e^{2\\\\pi i}$ is $<<one>>$.", .open = "<<", .close = ">>")
 }
 \seealso{
 \url{https://www.python.org/dev/peps/pep-0498/} and
