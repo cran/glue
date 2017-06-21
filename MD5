@@ -1,7 +1,7 @@
-42526d14e78d6797776fba1701da3eb7 *DESCRIPTION
+72f5ccfd0b45afdb6322b55706e43cd1 *DESCRIPTION
 e2965db868cda3b9ce7b138d8ca0e6bc *LICENSE
 3023c02be14302be414a033b320150f0 *NAMESPACE
-3f5e86e38f9cea34706dc4de397b255a *NEWS.md
+30b708333d07888a2609cf8504300116 *NEWS.md
 858d262f41a65cbda70396fb0376f201 *R/glue.R
 f25d8ed7f568473df44c353211f35c9d *R/quoting.R
 5b08b26995895d52d23cf420410af203 *R/utils.R
@@ -11,7 +11,7 @@ d10e30c9bc0e43bf0e6c26e0dc538912 *man/collapse.Rd
 fc6862968d9748444945e399a558592a *man/glue.Rd
 5665d168b1fb64b49e96dfd9302184d9 *man/quoting.Rd
 cb80548db4ef7abb94efcf3bdcd1747d *man/trim.Rd
-7ca8fbf5d0a13c7164695574ed57b09d *src/glue.c
+4263ac45e523eb8ffcac5f256fd501a5 *src/glue.c
 57c4e91a5ecf31acbbc061d6650584bb *src/init.c
 b4073f521cc4cda21bebf9ee940ebda8 *src/trim.c
 2b2d5c82e65ffac3ce2300a7ba32fa68 *tests/testthat.R

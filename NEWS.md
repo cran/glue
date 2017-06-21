@@ -1,3 +1,7 @@
+# glue 1.1.1
+
+Another fix for PROTECT / REPROTECT found by the rchk static analyzer.
+
 # glue 1.1.0
 
 Fix for PROTECT errors when resizing output strings.
