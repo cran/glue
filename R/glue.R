@@ -6,14 +6,20 @@
 #' @param ... \[`expressions`]\cr Expressions string(s) to format, multiple inputs are concatenated together before formatting.
 #' @param .sep \[`character(1)`: \sQuote{""}]\cr Separator used to separate elements.
 #' @param .envir \[`environment`: `parent.frame()`]\cr Environment to evaluate each expression in. Expressions are
-#' evaluated from left to right. If `.x` is an environment, the expressions are
-#' evaluated in that environment and `.envir` is ignored.
+#'   evaluated from left to right. If `.x` is an environment, the expressions are
+#'   evaluated in that environment and `.envir` is ignored.
 #' @param .open \[`character(1)`: \sQuote{\\\{}]\cr The opening delimiter. Doubling the
-#' full delimiter escapes it.
+#'   full delimiter escapes it.
 #' @param .close \[`character(1)`: \sQuote{\\\}}]\cr The closing delimiter. Doubling the
-#' full delimiter escapes it.
+#'   full delimiter escapes it.
+#' @param .transformer \[`function]`\cr A function taking three parameters `code`, `envir` and
+#'   `data` used to transform the output of each block before during or after
+#'   evaluation. For example transformers see `vignette("transformers")`.
+#' @param .na \[`character(1)`: \sQuote{NA}]\cr Value to replace NA values
+#'   with. If `NULL` missing values are propegated, that is an `NA` result will
+#'   cause `NA` output. Otherwise the value is replaced by the value of `.na`.
 #' @seealso <https://www.python.org/dev/peps/pep-0498/> and
-#' <https://www.python.org/dev/peps/pep-0257> upon which this is based.
+#'   <https://www.python.org/dev/peps/pep-0257> upon which this is based.
 #' @examples
 #' name <- "Fred"
 #' age <- 50
@@ -43,14 +49,15 @@
 #' @useDynLib glue glue_
 #' @name glue
 #' @export
-glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}") {
+glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}", .na = "NA", .transformer = identity_transformer) {
 
   # Perform all evaluations in a temporary environment
-  if (is.environment(.x)) {
-    env <- new.env(parent = .x)
-    .envir <- NULL
-  } else {
+  if (is.null(.x)) {
     env <- new.env(parent = .envir)
+  } else if (is.environment(.x)) {
+    env <- new.env(parent = .x)
+  } else {
+    env <- list2env(.x, parent = .envir)
   }
 
   # Capture unevaluated arguments
@@ -58,34 +65,56 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(), .open = "{", 
   named <- has_names(dots)
 
   # Evaluate named arguments, add results to environment
-  assign_args(dots[named], envir = env, data = .x)
+  assign_args(dots[named], env)
 
   # Concatenate unnamed arguments together
-  unnamed_args <- eval_args(dots[!named], envir = env, data = .x)
+  unnamed_args <- lapply(which(!named), function(x) eval(call("force", as.symbol(paste0("..", x)))))
 
   lengths <- lengths(unnamed_args)
-  if (any(lengths == 0)) {
+  if (any(lengths == 0) || length(unnamed_args) < length(dots[!named])) {
     return(as_glue(character(0)))
   }
   if (any(lengths != 1)) {
     stop("All unnamed arguments must be length 1", call. = FALSE)
   }
+  if (any(is.na(unnamed_args))) {
+    if (is.null(.na)) {
+      return(as_glue(NA_character_))
+    } else {
+      unnamed_args[is.na(unnamed_args)] <- .na
+    }
+  }
+
   unnamed_args <- paste0(unnamed_args, collapse = .sep)
   unnamed_args <- trim(unnamed_args)
 
+  f <- function(expr) as.character(.transformer(expr, env))
+
   # Parse any glue strings
-  res <- .Call(glue_, unnamed_args,
-    function(expr)
-      enc2utf8(
-        as.character(
-          eval2(parse(text = expr), envir = env, data = .x))),
-      .open, .close)
+  res <- .Call(glue_, unnamed_args, f, .open, .close)
 
   if (any(lengths(res) == 0)) {
     return(as_glue(character(0)))
   }
 
+  res <- recycle_columns(res)
+
+  # Replace NA values as needed
+  if (!is.null(.na)) {
+    res[] <- lapply(res, function(x) {
+      x[is.na(x)] <- .na
+      x
+    })
+  } else {
+    # Return NA for any rows that are NA
+    na_rows <- Reduce(`|`, lapply(res, is.na))
+  }
+
   res <- do.call(paste0, recycle_columns(res))
+
+  if (is.null(.na)) {
+    res[na_rows] <- NA_character_
+  }
 
   as_glue(res)
 }
@@ -117,9 +146,13 @@ collapse <- function(x, sep = "", width = Inf, last = "") {
   if (length(x) == 0) {
     return(as_glue(character()))
   }
+  if (any(is.na(x))) {
+    return(as_glue(NA_character_))
+  }
+
   if (nzchar(last) && length(x) > 1) {
     res <- collapse(x[seq(1, length(x) - 1)], sep = sep, width = Inf)
-    return(collapse(glue(res, last, x[length(x)]), width = width))
+    return(collapse(paste0(res, last, x[length(x)]), width = width))
   }
   x <- paste0(x, collapse = sep)
   if (width < Inf) {
@@ -137,12 +170,12 @@ collapse <- function(x, sep = "", width = Inf, last = "") {
 #' This trims a character vector according to the trimming rules used by glue.
 #' These follow similar rules to [Python Docstrings](https://www.python.org/dev/peps/pep-0257),
 #' with the following features.
-#'
 #' - Leading and trailing whitespace from the first and last lines is removed.
 #' - A uniform amount of indentation is stripped from the second line on, equal
 #' to the minimum indentation of all non-blank lines after the first.
 #' - Lines can be continued across newlines by using `\\`.
 #' @param x A character vector to trim.
+#' @export
 #' @examples
 #' glue("
 #'     A formatted string
@@ -162,11 +195,17 @@ collapse <- function(x, sep = "", width = Inf, last = "") {
 
 #' @useDynLib glue trim_
 trim <- function(x) {
+  has_newline <- function(x) grepl("\\n", x)
+  if (length(x) == 0 || !has_newline(x)) {
+    return(x)
+  }
   .Call(trim_, x)
 }
 
 #' @export
 print.glue <- function(x, ..., sep = "\n") {
+  x[is.na(x)] <- style_na(x[is.na(x)])
+
   cat(x, ..., sep = sep)
 
   invisible(x)
@@ -192,7 +231,8 @@ as_glue.glue <- function(x, ...) {
 
 #' @export
 as_glue.character <- function(x, ...) {
-  structure(x, class = c("glue", "character"))
+  class(x) <- c("glue", "character")
+  x
 }
 
 #' @export

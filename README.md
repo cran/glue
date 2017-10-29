@@ -3,7 +3,7 @@
 glue
 ====
 
-[![CRAN\_Status\_Badge](http://www.r-pkg.org/badges/version/glue)](http://cran.r-project.org/package=glue) [![Travis-CI Build Status](http://travis-ci.org/tidyverse/glue.svg?branch=master)](http://travis-ci.org/tidyverse/glue) [![Coverage Status](http://img.shields.io/codecov/c/github/tidyverse/glue/master.svg)](http://codecov.io/github/tidyverse/glue?branch=master) [![AppVeyor Build Status](http://ci.appveyor.com/api/projects/status/github/tidyverse/glue?branch=master&svg=true)](http://ci.appveyor.com/project/tidyverse/glue)
+[![CRAN\_Status\_Badge](https://www.r-pkg.org/badges/version/glue)](https://cran.r-project.org/package=glue) [![Travis-CI Build Status](https://travis-ci.org/tidyverse/glue.svg?branch=master)](https://travis-ci.org/tidyverse/glue) [![Coverage Status](https://img.shields.io/codecov/c/github/tidyverse/glue/master.svg)](https://codecov.io/github/tidyverse/glue?branch=master) [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/tidyverse/glue?branch=master&svg=true)](https://ci.appveyor.com/project/tidyverse/glue)
 
 Glue strings to data in R. Small, fast, dependency free interpreted string literals.
 
@@ -21,6 +21,8 @@ Usage
 ##### Long strings are broken by line and concatenated together.
 
 ``` r
+library(glue)
+
 name <- "Fred"
 age <- 50
 anniversary <- as.Date("1991-10-12")
@@ -42,7 +44,7 @@ glue('My name is {name},',
 #> My name is Joe, my age next year is 41, my anniversary is Friday, October 12, 2001.
 ```
 
-##### `glue_data()` is useful with [magrittr](http://cran.r-project.org/package=magrittr) pipes.
+##### `glue_data()` is useful with [magrittr](https://cran.r-project.org/package=magrittr) pipes.
 
 ``` r
 `%>%` <- magrittr::`%>%`
@@ -125,12 +127,89 @@ glue("{
 #> foo
 ```
 
+##### `glue_sql()` makes constructing SQL statements safe and easy
+
+Use backticks to quote identifiers, normal strings and numbers are quoted appropriately for your backend.
+
+``` r
+library(glue)
+
+con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+colnames(iris) <- gsub("[.]", "_", tolower(colnames(iris)))
+DBI::dbWriteTable(con, "iris", iris)
+var <- "sepal_width"
+tbl <- "iris"
+num <- 2
+val <- "setosa"
+glue_sql("
+  SELECT {`var`}
+  FROM {`tbl`}
+  WHERE {`tbl`}.sepal_length > {num}
+    AND {`tbl`}.species = {val}
+  ", .con = con)
+#> <SQL> SELECT `sepal_width`
+#> FROM `iris`
+#> WHERE `iris`.sepal_length > 2
+#>   AND `iris`.species = 'setosa'
+
+# `glue_sql()` can be used in conjuction with parameterized queries using
+# `DBI::dbBind()` to provide protection for SQL Injection attacks
+ sql <- glue_sql("
+    SELECT {`var`}
+    FROM {`tbl`}
+    WHERE {`tbl`}.sepal_length > ?
+  ", .con = con)
+query <- DBI::dbSendQuery(con, sql)
+DBI::dbBind(query, list(num))
+DBI::dbFetch(query, n = 4)
+#>   sepal_width
+#> 1         3.5
+#> 2         3.0
+#> 3         3.2
+#> 4         3.1
+DBI::dbClearResult(query)
+
+# `glue_sql()` can be used to build up more complex queries with
+# interchangeable sub queries. It returns `DBI::SQL()` objects which are
+# properly protected from quoting.
+sub_query <- glue_sql("
+  SELECT *
+  FROM {`tbl`}
+  ", .con = con)
+
+glue_sql("
+  SELECT s.{`var`}
+  FROM ({sub_query}) AS s
+  ", .con = con)
+#> <SQL> SELECT s.`sepal_width`
+#> FROM (SELECT *
+#> FROM `iris`) AS s
+
+# If you want to input multiple values for use in SQL IN statements put `*`
+# at the end of the value and the values will be collapsed and quoted appropriately.
+glue_sql("SELECT * FROM {`tbl`} WHERE sepal_length IN ({vals*})",
+  vals = 1, .con = con)
+#> <SQL> SELECT * FROM `iris` WHERE sepal_length IN (1)
+
+glue_sql("SELECT * FROM {`tbl`} WHERE sepal_length IN ({vals*})",
+  vals = 1:5, .con = con)
+#> <SQL> SELECT * FROM `iris` WHERE sepal_length IN (1, 2, 3, 4, 5)
+
+glue_sql("SELECT * FROM {`tbl`} WHERE species IN ({vals*})",
+  vals = "setosa", .con = con)
+#> <SQL> SELECT * FROM `iris` WHERE species IN ('setosa')
+
+glue_sql("SELECT * FROM {`tbl`} WHERE species IN ({vals*})",
+  vals = c("setosa", "versicolor"), .con = con)
+#> <SQL> SELECT * FROM `iris` WHERE species IN ('setosa', 'versicolor')
+```
+
 Other implementations
 =====================
 
 Some other implementations of string interpolation in R (although not using identical syntax).
 
 -   [stringr::str\_interp](http://stringr.tidyverse.org/reference/str_interp.html)
--   [pystr::pystr\_format](http://cran.r-project.org/package=pystr)
--   [R.utils::gstring](http://cran.r-project.org/package=R.utils)
--   [rprintf](http://cran.r-project.org/package=rprintf)
+-   [pystr::pystr\_format](https://cran.r-project.org/package=pystr)
+-   [R.utils::gstring](https://cran.r-project.org/package=R.utils)
+-   [rprintf](https://cran.r-project.org/package=rprintf)

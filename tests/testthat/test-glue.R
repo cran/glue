@@ -169,65 +169,6 @@ test_that("glue_data evaluates in the object first, then enclosure, then parent"
   expect_identical(as_glue("3 3 3"), glue_data(env2, "{x} {y} {z}"))
 })
 
-test_that("trim works", {
-  expect_identical("", trim(""))
-  expect_identical(character(), trim(character()))
-  expect_identical("test", trim("test"))
-  expect_identical(c("foo", "bar"), trim(c("foo", "bar")))
-  expect_identical(c("foo", "bar"), trim(c("\nfoo", "bar\n")))
-  expect_identical("test",
-    trim(
-      "test"))
-  expect_identical("test",
-    x <- trim(
-      "test
-    "))
-  expect_identical("test",
-    trim("      
-      test
-    "))
-  expect_identical("test",
-    trim(
-      "test"))
-  expect_identical("test\n  test2",
-    trim("
-      test
-        test2
-    "))
-  expect_identical("test\n  test2\n    test3",
-    trim("
-      test
-        test2
-          test3
-    "))
-
-  expect_identical("\ntest\n",
-    trim("
-
-      test
-
-      "))
-})
-
-test_that("trim strips escaped newlines", {
-  expect_identical(
-    "foo bar baz",
-    trim("foo bar \\\nbaz"))
-
-  expect_identical(
-    "foo bar baz",
-    trim("foo bar \\
-      baz"))
-
-  expect_identical(
-    "foo bar baz\n",
-    trim("foo bar baz\n\n"))
-
-  expect_identical(
-    "\nfoo bar baz",
-    trim("\n\nfoo bar baz"))
-})
-
 test_that("converting glue to character", {
   expect_identical("foo bar", as.character(glue("foo bar")))
 })
@@ -242,6 +183,8 @@ test_that("printing glue identical to cat()", {
 
 test_that("length 0 inputs produce length 0 outputs", {
   expect_identical(as_glue(character(0)), glue("foo", character(0)))
+  expect_identical(as_glue(character(0)), glue("foo", NULL))
+  expect_identical(as_glue(character(0)), glue("foo", NULL, "bar"))
 
   expect_identical(as_glue(character(0)), glue("foo", "{character(0)}"))
   expect_identical(as_glue(character(0)), glue("foo {character(0)}"))
@@ -303,4 +246,85 @@ test_that("glue always returns UTF-8 encoded strings regardless of input encodin
 
   expect_identical(xy_out, glue(x, y))
   expect_identical(xy_out, glue("{x}{y}"))
+})
+
+test_that("glue always returns NA_character_ if given any NA input and `.na` == NULL", {
+  expect_identical(
+    glue("{NA}", .na = NULL),
+    as_glue(NA_character_))
+
+  expect_identical(
+    glue(NA, .na = NULL),
+    as_glue(NA_character_))
+
+  expect_identical(
+    glue(NA, 1, .na = NULL),
+    as_glue(NA_character_))
+
+  expect_identical(
+    glue(1, NA, 2, .na = NULL),
+    as_glue(NA_character_))
+
+  x <- c("foo", NA_character_, "bar")
+  expect_identical(
+    glue("{x}", .na = NULL),
+    as_glue(c("foo", NA_character_, "bar")))
+
+  expect_identical(
+    glue("{1:3} - {x}", .na = NULL),
+    as_glue(c("1 - foo", NA_character_, "3 - bar")))
+})
+
+test_that("glue always returns .na if given any NA input and `.na` != NULL", {
+  expect_identical(
+    glue("{NA}", .na = "foo"),
+    as_glue("foo"))
+
+  expect_identical(
+    glue("{NA}", .na = "foo"),
+    as_glue("foo"))
+
+  expect_identical(
+    glue(NA, .na = "foo"),
+    as_glue("foo"))
+
+  expect_identical(
+    glue(NA, 1, .na = "foo"),
+    as_glue("foo1"))
+
+  expect_identical(
+    glue(1, NA, 2, .na = "foo"),
+    as_glue("1foo2"))
+
+  x <- c("foo", NA_character_, "bar")
+  expect_identical(
+    glue("{x}", .na = "baz"),
+    as_glue(c("foo", "baz", "bar")))
+
+  expect_identical(
+    glue("{1:3} - {x}", .na = "baz"),
+    as_glue(c("1 - foo", "2 - baz", "3 - bar")))
+})
+
+test_that("glue works within functions", {
+  x <- 1
+  f <- function(msg) glue(msg, .envir = parent.frame())
+
+  expect_identical(f("{x}"), as_glue("1"))
+})
+
+test_that("scoping works within lapply (#42)", {
+  f <- function(msg) {
+    glue(msg, .envir = parent.frame())
+  }
+  expect_identical(lapply(1:2, function(x) f("{x * 2}")),
+    list(as_glue("2"), as_glue("4")))
+})
+
+test_that("glue works with lots of arguments", {
+  expect_identical(
+    glue("a", "very", "long", "test", "of", "how", "many", "unnamed",
+      "arguments", "you", "can", "have"),
+
+    as_glue("averylongtestofhowmanyunnamedargumentsyoucanhave"))
 })
