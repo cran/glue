@@ -5,9 +5,10 @@
 \alias{glue_data_sql}
 \title{Interpolate strings with SQL escaping}
 \usage{
-glue_sql(..., .con, .envir = parent.frame())
+glue_sql(..., .con, .envir = parent.frame(), .na = DBI::SQL("NULL"))
 
-glue_data_sql(.x, ..., .con, .envir = parent.frame())
+glue_data_sql(.x, ..., .con, .envir = parent.frame(),
+  .na = DBI::SQL("NULL"))
 }
 \arguments{
 \item{...}{[\code{expressions}]\cr Expressions string(s) to format, multiple inputs are concatenated together before formatting.}
@@ -18,6 +19,10 @@ glue_data_sql(.x, ..., .con, .envir = parent.frame())
 evaluated from left to right. If \code{.x} is an environment, the expressions are
 evaluated in that environment and \code{.envir} is ignored.}
 
+\item{.na}{[\code{character(1)}: \sQuote{NA}]\cr Value to replace NA values
+with. If \code{NULL} missing values are propagated, that is an \code{NA} result will
+cause \code{NA} output. Otherwise the value is replaced by the value of \code{.na}.}
+
 \item{.x}{[\code{listish}]\cr An environment, list or data frame used to lookup values.}
 }
 \value{
@@ -26,13 +31,13 @@ A \code{DBI::SQL()} object with the given query.
 \description{
 SQL databases often have custom quotation syntax for identifiers and strings
 which make writing SQL queries error prone and cumbersome to do. \code{glue_sql()} and
-\code{glue_sql_data()} are analogs to \code{glue()} and \code{glue_data()} which handle the
+\code{glue_data_sql()} are analogs to \code{glue()} and \code{glue_data()} which handle the
 SQL quoting.
 }
 \details{
 They automatically quote character results, quote identifiers if the glue
-expression is surrounded by backticks \sQuote{`} and do not quote
-non-characters such as numbers.
+expression is surrounded by backticks \sQuote{\code{} and do not quote non-characters such as numbers. If numeric data is stored in a character column (which should be quoted) pass the data to}glue_sql()` as a
+character.
 
 Returning the result with \code{DBI::SQL()} will suppress quoting if desired for
 a given value.
@@ -57,6 +62,15 @@ glue_sql("
   SELECT {`var`}
   FROM {`tbl`}
   WHERE {`tbl`}.sepal_length > {num}
+    AND {`tbl`}.species = {val}
+  ", .con = con)
+
+# If sepal_length is store on the database as a character explicitly convert
+# the data to character to quote appropriately.
+glue_sql("
+  SELECT {`var`}
+  FROM {`tbl`}
+  WHERE {`tbl`}.sepal_length > {as.character(num)}
     AND {`tbl`}.species = {val}
   ", .con = con)
 

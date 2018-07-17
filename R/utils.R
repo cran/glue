@@ -7,12 +7,15 @@ has_names <- function(x) {
   }
 }
 
-assign_args <- function(args, envir) {
-  res <- vector("list", length(args))
+bind_args <- function(args, parent) {
+  assign_env <- parent
   nms <- names(args)
   for (i in seq_along(args)) {
-    assign(nms[[i]], eval(args[[i]], envir), envir = envir)
+    eval_env <- assign_env
+    assign_env <- new.env(parent = eval_env)
+    delayed_assign(nms[[i]], args[[i]], eval.env = eval_env, assign.env = assign_env)
   }
+  assign_env
 }
 
 # From tibble::recycle_columns
@@ -24,6 +27,7 @@ recycle_columns <- function (x) {
     if (any(lengths) == 0) {
       return(character())
     }
+
     max <- max(lengths)
     bad_len <- lengths != 1L & lengths != max
     if (any(bad_len)) {
@@ -54,4 +58,23 @@ style_na <- function(x) {
 
 lengths <- function(x) {
   vapply(x, length, integer(1L))
+}
+
+na_rows <- function(res) {
+  Reduce(`|`, lapply(res, is.na))
+}
+
+"%||%" <- function(x, y) if (is.null(x)) y else x # nocov
+
+# A version of delayedAssign which does _not_ use substitute
+delayed_assign <- function(x, value, eval.env = parent.frame(1), assign.env = parent.frame(1)) {
+  (get(".Internal", baseenv()))(delayedAssign(x, value, eval.env, assign.env))
+}
+
+## @export
+compare.glue <- function(x, y) {
+  if (identical(class(y), "character")) {
+    class(x) <- NULL
+  }
+  NextMethod("compare")
 }

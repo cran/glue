@@ -2,12 +2,14 @@
 #'
 #' SQL databases often have custom quotation syntax for identifiers and strings
 #' which make writing SQL queries error prone and cumbersome to do. `glue_sql()` and
-#' `glue_sql_data()` are analogs to `glue()` and `glue_data()` which handle the
+#' `glue_data_sql()` are analogs to `glue()` and `glue_data()` which handle the
 #' SQL quoting.
 #'
 #' They automatically quote character results, quote identifiers if the glue
 #' expression is surrounded by backticks \sQuote{`} and do not quote
-#' non-characters such as numbers.
+#' non-characters such as numbers. If numeric data is stored in a character
+#' column (which should be quoted) pass the data to `glue_sql()` as a
+#' character.
 #'
 #' Returning the result with `DBI::SQL()` will suppress quoting if desired for
 #' a given value.
@@ -34,6 +36,15 @@
 #'   SELECT {`var`}
 #'   FROM {`tbl`}
 #'   WHERE {`tbl`}.sepal_length > {num}
+#'     AND {`tbl`}.species = {val}
+#'   ", .con = con)
+#'
+#' # If sepal_length is store on the database as a character explicitly convert
+#' # the data to character to quote appropriately.
+#' glue_sql("
+#'   SELECT {`var`}
+#'   FROM {`tbl`}
+#'   WHERE {`tbl`}.sepal_length > {as.character(num)}
 #'     AND {`tbl`}.species = {val}
 #'   ", .con = con)
 #'
@@ -78,35 +89,42 @@
 #'
 #' DBI::dbDisconnect(con)
 #' @export
-glue_sql <- function(..., .con, .envir = parent.frame()) {
-  DBI::SQL(glue(..., .envir = .envir, .transformer = sql_quote_transformer(.con)))
+glue_sql <- function(..., .con, .envir = parent.frame(), .na = DBI::SQL("NULL")) {
+  DBI::SQL(glue(..., .envir = .envir, .na = .na, .transformer = sql_quote_transformer(.con)))
 }
 
 #' @rdname glue_sql
 #' @export
-glue_data_sql <- function(.x, ..., .con, .envir = parent.frame()) {
-  DBI::SQL(glue_data(.x, ..., .envir = .envir, .transformer = sql_quote_transformer(.con)))
+glue_data_sql <- function(.x, ..., .con, .envir = parent.frame(), .na = DBI::SQL("NULL")) {
+  DBI::SQL(glue_data(.x, ..., .envir = .envir, .na = .na, .transformer = sql_quote_transformer(.con)))
 }
 
 sql_quote_transformer <- function(connection) {
-  function(code, envir) {
-    should_collapse <- grepl("[*]$", code)
+  function(text, envir) {
+    should_collapse <- grepl("[*]$", text)
     if (should_collapse) {
-      code <- sub("[*]$", "", code)
+      text <- sub("[*]$", "", text)
     }
-    m <- gregexpr("^`|`$", code)
-    if (any(m[[1]] != -1)) {
-      regmatches(code, m) <- ""
-      res <- DBI::dbQuoteIdentifier(conn = connection, as.character(evaluate(code, envir)))
+    m <- gregexpr("^`|`$", text)
+    is_quoted <- any(m[[1]] != -1)
+    if (is_quoted) {
+      regmatches(text, m) <- ""
+      res <- eval(parse(text = text, keep.source = FALSE), envir)
+      res <- DBI::dbQuoteIdentifier(conn = connection, res)
     } else {
-      res <- evaluate(code, envir)
-      if (is.character(res)) {
+      res <- eval(parse(text = text, keep.source = FALSE), envir)
+
+      # Convert all NA's as needed
+      if (any(is.na(res))) {
+        res <- as.list(res)
+        res[is.na(res)] <- NA_character_
+      }
+      if(is.character(res)) {
         res <- DBI::dbQuoteString(conn = connection, res)
       }
-      res
     }
     if (should_collapse) {
-      res <- collapse(res, ", ")
+      res <- glue_collapse(res, ", ")
     }
     res
   }

@@ -1,7 +1,9 @@
 #' Format and interpolate a string
 #'
-#' Expressions enclosed by braces will be evaluated as R code. Single braces
-#' can be inserted by doubling them.
+#' Expressions enclosed by braces will be evaluated as R code. Long strings are
+#' broken by line and concatenated together. Leading whitespace and blank lines
+#' from the first and last lines are automatically trimmed.
+#'
 #' @param .x \[`listish`]\cr An environment, list or data frame used to lookup values.
 #' @param ... \[`expressions`]\cr Expressions string(s) to format, multiple inputs are concatenated together before formatting.
 #' @param .sep \[`character(1)`: \sQuote{""}]\cr Separator used to separate elements.
@@ -16,8 +18,10 @@
 #'   `data` used to transform the output of each block before during or after
 #'   evaluation. For example transformers see `vignette("transformers")`.
 #' @param .na \[`character(1)`: \sQuote{NA}]\cr Value to replace NA values
-#'   with. If `NULL` missing values are propegated, that is an `NA` result will
+#'   with. If `NULL` missing values are propagated, that is an `NA` result will
 #'   cause `NA` output. Otherwise the value is replaced by the value of `.na`.
+#' @param .trim \[`logical(1)`: \sQuote{TRUE}]\cr Whether to trim the input
+#'   template with `trim()` or not.
 #' @seealso <https://www.python.org/dev/peps/pep-0498/> and
 #'   <https://www.python.org/dev/peps/pep-0257> upon which this is based.
 #' @examples
@@ -31,7 +35,7 @@
 #' # single braces can be inserted by doubling them
 #' glue("My name is {name}, not {{name}}.")
 #'
-#' # Named arguments can also be supplied
+#' # Named arguments can be used to assign temporary variables.
 #' glue('My name is {name},',
 #'   ' my age next year is {age + 1},',
 #'   ' my anniversary is {format(anniversary, "%A, %B %d, %Y")}.',
@@ -39,9 +43,15 @@
 #'   age = 40,
 #'   anniversary = as.Date("2001-10-12"))
 #'
+#'
 #' # `glue_data()` is useful in magrittr pipes
 #' library(magrittr)
 #' mtcars %>% glue_data("{rownames(.)} has {hp} hp")
+#'
+#' # Or within dplyr pipelines
+#' library(dplyr)
+#' head(iris) %>%
+#'   mutate(description = glue("This {Species} has a petal length of {Petal.Length}"))
 #'
 #' # Alternative delimiters can also be used if needed
 #' one <- "1"
@@ -49,15 +59,17 @@
 #' @useDynLib glue glue_
 #' @name glue
 #' @export
-glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}", .na = "NA", .transformer = identity_transformer) {
+glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
+  .open = "{", .close = "}", .na = "NA", .transformer = identity_transformer,
+  .trim = TRUE) {
 
   # Perform all evaluations in a temporary environment
   if (is.null(.x)) {
-    env <- new.env(parent = .envir)
+    parent_env <- .envir
   } else if (is.environment(.x)) {
-    env <- new.env(parent = .x)
+    parent_env <- .x
   } else {
-    env <- list2env(.x, parent = .envir)
+    parent_env <- list2env(.x, parent = .envir)
   }
 
   # Capture unevaluated arguments
@@ -65,13 +77,13 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(), .open = "{", 
   named <- has_names(dots)
 
   # Evaluate named arguments, add results to environment
-  assign_args(dots[named], env)
+  env <- bind_args(dots[named], parent_env)
 
   # Concatenate unnamed arguments together
   unnamed_args <- lapply(which(!named), function(x) eval(call("force", as.symbol(paste0("..", x)))))
 
   lengths <- lengths(unnamed_args)
-  if (any(lengths == 0) || length(unnamed_args) < length(dots[!named])) {
+  if (any(lengths == 0) || length(unnamed_args) < sum(!named)) {
     return(as_glue(character(0)))
   }
   if (any(lengths != 1)) {
@@ -86,7 +98,9 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(), .open = "{", 
   }
 
   unnamed_args <- paste0(unnamed_args, collapse = .sep)
-  unnamed_args <- trim(unnamed_args)
+  if (isTRUE(.trim)) {
+    unnamed_args <- trim(unnamed_args)
+  }
 
   f <- function(expr) as.character(.transformer(expr, env))
 
@@ -97,23 +111,16 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(), .open = "{", 
     return(as_glue(character(0)))
   }
 
-  res <- recycle_columns(res)
-
-  # Replace NA values as needed
   if (!is.null(.na)) {
-    res[] <- lapply(res, function(x) {
-      x[is.na(x)] <- .na
-      x
-    })
+    res[] <- lapply(res, function(x) replace(x, is.na(x), .na))
   } else {
-    # Return NA for any rows that are NA
-    na_rows <- Reduce(`|`, lapply(res, is.na))
+    na_rows <- na_rows(res)
   }
 
   res <- do.call(paste0, recycle_columns(res))
 
   if (is.null(.na)) {
-    res[na_rows] <- NA_character_
+    res <- replace(res, na_rows, NA)
   }
 
   as_glue(res)
@@ -121,8 +128,8 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(), .open = "{", 
 
 #' @export
 #' @rdname glue
-glue <- function(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}") {
-  glue_data(.x = NULL, ..., .sep = .sep, .envir = .envir, .open = .open, .close = .close)
+glue <- function(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}", .na = "NA",  .transformer = identity_transformer) {
+  glue_data(.x = NULL, ..., .sep = .sep, .envir = .envir, .open = .open, .close = .close, .na = .na, .transformer = .transformer)
 }
 
 #' Collapse a character vector
@@ -134,15 +141,15 @@ glue <- function(..., .sep = "", .envir = parent.frame(), .open = "{", .close = 
 #' 2 items.
 #' @inheritParams base::paste
 #' @examples
-#' collapse(glue("{1:10}"))
+#' glue_collapse(glue("{1:10}"))
 #'
 #' # Wide values can be truncated
-#' collapse(glue("{1:10}"), width = 5)
+#' glue_collapse(glue("{1:10}"), width = 5)
 #'
-#' collapse(1:4, ",", last = " and ")
+#' glue_collapse(1:4, ",", last = " and ")
 #' #> 1, 2, 3 and 4
 #' @export
-collapse <- function(x, sep = "", width = Inf, last = "") {
+glue_collapse <- function(x, sep = "", width = Inf, last = "") {
   if (length(x) == 0) {
     return(as_glue(character()))
   }
@@ -151,8 +158,8 @@ collapse <- function(x, sep = "", width = Inf, last = "") {
   }
 
   if (nzchar(last) && length(x) > 1) {
-    res <- collapse(x[seq(1, length(x) - 1)], sep = sep, width = Inf)
-    return(collapse(paste0(res, last, x[length(x)]), width = width))
+    res <- glue_collapse(x[seq(1, length(x) - 1)], sep = sep, width = Inf)
+    return(glue_collapse(paste0(res, last, x[length(x)]), width = width))
   }
   x <- paste0(x, collapse = sep)
   if (width < Inf) {
@@ -164,6 +171,15 @@ collapse <- function(x, sep = "", width = Inf, last = "") {
   }
   as_glue(x)
 }
+
+# nocov start
+#' @rdname glue-deprecated
+#' @export
+collapse <- function(x, sep = "", width = Inf, last = "") {
+  .Deprecated("glue_collapse", package = "glue")
+  glue_collapse(x, sep, width, last)
+}
+# nocov end
 
 #' Trim a character vector
 #'
@@ -232,7 +248,7 @@ as_glue.glue <- function(x, ...) {
 #' @export
 as_glue.character <- function(x, ...) {
   class(x) <- c("glue", "character")
-  x
+  enc2utf8(x)
 }
 
 #' @export
@@ -240,6 +256,24 @@ as.character.glue <- function(x, ...) {
   unclass(x)
 }
 
-#' @importFrom methods setOldClass
+#' @export
+`[.glue` <- function(x, i, ...) {
+  as_glue(NextMethod())
+}
 
+#' @export
+`[[.glue` <- function(x, i, ...) {
+  as_glue(NextMethod())
+}
+
+#' @importFrom methods setOldClass
 setOldClass(c("glue", "character"))
+
+
+#' Deprecated Functions
+#'
+#' These functions are Deprecated in this release of glue, they will be removed
+#' in a future version.
+#' @name glue-deprecated
+#' @keywords internal
+NULL

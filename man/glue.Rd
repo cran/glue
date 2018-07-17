@@ -7,9 +7,11 @@
 \title{Format and interpolate a string}
 \usage{
 glue_data(.x, ..., .sep = "", .envir = parent.frame(), .open = "{",
-  .close = "}", .na = "NA", .transformer = identity_transformer)
+  .close = "}", .na = "NA", .transformer = identity_transformer,
+  .trim = TRUE)
 
-glue(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}")
+glue(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}",
+  .na = "NA", .transformer = identity_transformer)
 }
 \arguments{
 \item{.x}{[\code{listish}]\cr An environment, list or data frame used to lookup values.}
@@ -29,16 +31,20 @@ full delimiter escapes it.}
 full delimiter escapes it.}
 
 \item{.na}{[\code{character(1)}: \sQuote{NA}]\cr Value to replace NA values
-with. If \code{NULL} missing values are propegated, that is an \code{NA} result will
+with. If \code{NULL} missing values are propagated, that is an \code{NA} result will
 cause \code{NA} output. Otherwise the value is replaced by the value of \code{.na}.}
 
 \item{.transformer}{[\code{function]}\cr A function taking three parameters \code{code}, \code{envir} and
 \code{data} used to transform the output of each block before during or after
 evaluation. For example transformers see \code{vignette("transformers")}.}
+
+\item{.trim}{[\code{logical(1)}: \sQuote{TRUE}]\cr Whether to trim the input
+template with \code{trim()} or not.}
 }
 \description{
-Expressions enclosed by braces will be evaluated as R code. Single braces
-can be inserted by doubling them.
+Expressions enclosed by braces will be evaluated as R code. Long strings are
+broken by line and concatenated together. Leading whitespace and blank lines
+from the first and last lines are automatically trimmed.
 }
 \examples{
 name <- "Fred"
@@ -51,7 +57,7 @@ glue('My name is {name},',
 # single braces can be inserted by doubling them
 glue("My name is {name}, not {{name}}.")
 
-# Named arguments can also be supplied
+# Named arguments can be used to assign temporary variables.
 glue('My name is {name},',
   ' my age next year is {age + 1},',
   ' my anniversary is {format(anniversary, "\%A, \%B \%d, \%Y")}.',
@@ -59,9 +65,15 @@ glue('My name is {name},',
   age = 40,
   anniversary = as.Date("2001-10-12"))
 
+
 # `glue_data()` is useful in magrittr pipes
 library(magrittr)
 mtcars \%>\% glue_data("{rownames(.)} has {hp} hp")
+
+# Or within dplyr pipelines
+library(dplyr)
+head(iris) \%>\%
+  mutate(description = glue("This {Species} has a petal length of {Petal.Length}"))
 
 # Alternative delimiters can also be used if needed
 one <- "1"

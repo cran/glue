@@ -1,5 +1,8 @@
 context("sql")
 
+skip_if_not_installed("DBI")
+skip_if_not_installed("RSQLite")
+
 describe("glue_sql", {
   con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
   on.exit(DBI::dbDisconnect(con))
@@ -33,6 +36,14 @@ describe("glue_sql", {
 
     expect_identical(glue_sql("{var*}", .con = con, var = "a"), DBI::SQL("'a'"))
     expect_identical(glue_sql("{var*}", .con = con, var = letters[1:5]), DBI::SQL("'a', 'b', 'c', 'd', 'e'"))
+  })
+  it("should return an SQL NULL by default for missing values", {
+    var <- list(NA, NA_character_, NA_real_, NA_integer_)
+    expect_identical(glue_sql("x = {var}", .con = con), rep(DBI::SQL("x = NULL"), 4))
+  })
+  it("should return NA for missing values and .na = NULL", {
+    var <- list(NA, NA_character_, NA_real_, NA_integer_)
+    expect_identical(glue_sql("x = {var}", .con = con, .na = NULL), rep(DBI::SQL(NA), 4))
   })
 })
 

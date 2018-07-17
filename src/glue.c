@@ -3,16 +3,20 @@
 #include <string.h>
 
 SEXP set(SEXP x, int i, SEXP val) {
-  size_t len = Rf_length(x);
+  R_xlen_t len = Rf_xlength(x);
   if (i >= len) {
-    // Gives us the growth sequence 3, 5, 9, 17, ...
-    // This works well because for the glue case the final number of elements
-    // will always be odd, and for common cases is 3 or 5.
-    len = (len * 2) - 1;
+    len *= 2;
     x = Rf_lengthgets(x, len);
   }
   SET_VECTOR_ELT(x, i, val);
   return x;
+}
+
+SEXP resize(SEXP out, R_xlen_t n) {
+  if (n == Rf_xlength(out)) {
+    return out;
+  }
+  return Rf_xlengthgets(out, n);
 }
 
 SEXP glue_(SEXP x, SEXP f, SEXP open_arg, SEXP close_arg) {
@@ -39,7 +43,7 @@ SEXP glue_(SEXP x, SEXP f, SEXP open_arg, SEXP close_arg) {
 
   int delim_equal = strncmp(open, close, open_len) == 0;
 
-  SEXP out = Rf_allocVector(VECSXP, 3);
+  SEXP out = Rf_allocVector(VECSXP, 1);
   PROTECT_INDEX out_idx;
   PROTECT_WITH_INDEX(out, &out_idx);
 
@@ -49,7 +53,8 @@ SEXP glue_(SEXP x, SEXP f, SEXP open_arg, SEXP close_arg) {
   size_t start = 0;
   states state = text;
   states prev_state = text;
-  for (size_t i = 0; i < str_len; ++i) {
+  size_t i = 0;
+  for (i = 0; i < str_len; ++i) {
     switch (state) {
     case text: {
       if (strncmp(&xx[i], open, open_len) == 0) {
@@ -132,23 +137,26 @@ SEXP glue_(SEXP x, SEXP f, SEXP open_arg, SEXP close_arg) {
         };
       }
       if (delim_level == 0) {
-        // Result of the current glue statement
+        /* Result of the current glue statement */
         SEXP expr = PROTECT(Rf_ScalarString(
-            Rf_mkCharLen(&xx[start], (i - close_len) + 1 - start)));
+            Rf_mkCharLenCE(&xx[start], (i - close_len) + 1 - start, CE_UTF8)));
         SEXP call = PROTECT(Rf_lang2(f, expr));
         SEXP result = PROTECT(Rf_eval(call, R_GlobalEnv));
 
-        // text in between last glue statement
-        str[j] = '\0';
-        SEXP str_ = PROTECT(Rf_ScalarString(Rf_mkCharLenCE(str, j, CE_UTF8)));
-        REPROTECT(out = set(out, k++, str_), out_idx);
+        /* text in between last glue statement */
+        if (j > 0) {
+          str[j] = '\0';
+          SEXP str_ = PROTECT(Rf_ScalarString(Rf_mkCharLenCE(str, j, CE_UTF8)));
+          REPROTECT(out = set(out, k++, str_), out_idx);
+          UNPROTECT(1);
+        }
 
         REPROTECT(out = set(out, k++, result), out_idx);
 
-        // Clear the string buffer
+        /* Clear the string buffer */
         memset(str, 0, j);
         j = 0;
-        UNPROTECT(4);
+        UNPROTECT(3);
         state = text;
       }
       break;
@@ -156,9 +164,12 @@ SEXP glue_(SEXP x, SEXP f, SEXP open_arg, SEXP close_arg) {
     };
   }
 
-  str[j] = '\0';
-  REPROTECT(out = Rf_lengthgets(out, k + 1), out_idx);
-  SET_VECTOR_ELT(out, k, Rf_ScalarString(Rf_mkCharLenCE(str, j, CE_UTF8)));
+  if (k == 0 || j > 0) {
+    str[j] = '\0';
+    SEXP str_ = PROTECT(Rf_ScalarString(Rf_mkCharLenCE(str, j, CE_UTF8)));
+    REPROTECT(out = set(out, k++, str_), out_idx);
+    UNPROTECT(1);
+  }
 
   if (state == delim) {
     Rf_error("Expecting '%s'", close);
@@ -167,5 +178,5 @@ SEXP glue_(SEXP x, SEXP f, SEXP open_arg, SEXP close_arg) {
   free(str);
 
   UNPROTECT(1);
-  return out;
+  return resize(out, k);
 }
