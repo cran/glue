@@ -22,6 +22,17 @@ describe("glue_sql", {
     var <- "foo"
     expect_identical(glue_sql("{`var`}", .con = con), DBI::SQL("`foo`"))
   })
+  it("quotes Id identifiers", {
+    var <- DBI::Id(schema = "foo", table = "bar", column = "baz")
+    expect_identical(glue_sql("{`var`}", .con = con), DBI::SQL("`foo`.`bar`.`baz`"))
+  })
+  it("quotes lists of Id identifiers", {
+    var <- c(
+      DBI::Id(schema = "foo", table = "bar", column = "baz"),
+      DBI::Id(schema = "foo", table = "bar", column = "baz2")
+    )
+    expect_identical(glue_sql("{`var`*}", .con = con), DBI::SQL("`foo`.`bar`.`baz`, `foo`.`bar`.`baz2`"))
+  })
   it("Does not quote numbers", {
     var <- 1
     expect_identical(glue_sql("{var}", .con = con), DBI::SQL("1"))
@@ -44,6 +55,16 @@ describe("glue_sql", {
   it("should return NA for missing values and .na = NULL", {
     var <- list(NA, NA_character_, NA_real_, NA_integer_)
     expect_identical(glue_sql("x = {var}", .con = con, .na = NULL), rep(DBI::SQL(NA), 4))
+  })
+
+  it("should return NA for missing values quote strings", {
+    var <- c("C", NA)
+    expect_identical(glue_sql("x = {var}", .con = con), DBI::SQL(c("x = 'C'", "x = NULL")))
+  })
+
+  it("should return a quoted date for Dates", {
+    var <- as.Date("2019-01-01")
+    expect_identical(glue_sql("x = {var}", .con = con), DBI::SQL("x = '2019-01-01'"))
   })
 })
 

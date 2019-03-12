@@ -399,3 +399,19 @@ test_that("interpolation variables can have same names as their values (#89)", {
 test_that("as_glue works", {
   expect_identical(as_glue(as_glue("x")), as_glue("x"))
 })
+
+test_that("throws informative error if interpolating a function", {
+  expect_error(glue("{cat}"), "is a function")
+
+  # some crayon functions are OK, make sure this still works
+  if (require("crayon")) {
+    expect_is(glue("{red}red{reset}"), "glue")
+  }
+})
+
+test_that("+ method for glue works", {
+  expect_identical(glue("foo") + "bar", as_glue("foobar"))
+
+  x <- 1
+  expect_identical(glue("x = ") + "{x}", glue("x = {x}"))
+})

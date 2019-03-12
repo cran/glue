@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# glue <img src="man/figures/logo.png" align="right" />
+# glue <a href='https:/glue.tidyverse.org'><img src='man/figures/logo.png' align="right" height="139" /></a>
 
 [![CRAN\_Status\_Badge](https://www.r-pkg.org/badges/version/glue)](https://cran.r-project.org/package=glue)
 [![Travis-CI Build
@@ -11,8 +11,11 @@ Status](https://img.shields.io/codecov/c/github/tidyverse/glue/master.svg)](http
 [![AppVeyor Build
 Status](https://ci.appveyor.com/api/projects/status/github/tidyverse/glue?branch=master&svg=true)](https://ci.appveyor.com/project/tidyverse/glue)
 
-Glue strings to data in R. Small, fast, dependency free interpreted
-string literals.
+## Overview
+
+Glue offers interpreted string literals that are small, fast, and
+dependency-free. Glue does this by embedding R expressions in curly
+braces which are then evaluated and inserted into the argument string.
 
 ## Installation
 
@@ -26,6 +29,15 @@ devtools::install_github("tidyverse/glue")
 ```
 
 ## Usage
+
+##### Variables can be passed directly into strings.
+
+``` r
+library(glue)
+name <- "Fred"
+glue('My name is {name}.')
+#> My name is Fred.
+```
 
 ##### Long strings are broken by line and concatenated together.
 
@@ -70,20 +82,6 @@ head(mtcars) %>% glue_data("{rownames(.)} has {hp} hp")
 
 ``` r
 library(dplyr)
-#> 
-#> Attaching package: 'dplyr'
-#> The following object is masked from 'package:glue':
-#> 
-#>     collapse
-#> The following object is masked from '.env':
-#> 
-#>     id
-#> The following objects are masked from 'package:stats':
-#> 
-#>     filter, lag
-#> The following objects are masked from 'package:base':
-#> 
-#>     intersect, setdiff, setequal, union
 head(iris) %>%
   mutate(description = glue("This {Species} has a petal length of {Petal.Length}"))
 #>   Sepal.Length Sepal.Width Petal.Length Petal.Width Species
@@ -248,6 +246,15 @@ glue_sql("SELECT * FROM {`tbl`} WHERE species IN ({vals*})",
 glue_sql("SELECT * FROM {`tbl`} WHERE species IN ({vals*})",
   vals = c("setosa", "versicolor"), .con = con)
 #> <SQL> SELECT * FROM `iris` WHERE species IN ('setosa', 'versicolor')
+```
+
+##### Optionally combine strings with `+`
+
+``` r
+x <- 1
+y <- 3
+glue("x + y") + " = {x + y}"
+#> x + y = 4
 ```
 
 # Other implementations

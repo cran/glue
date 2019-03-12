@@ -102,7 +102,31 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
     unnamed_args <- trim(unnamed_args)
   }
 
-  f <- function(expr) as.character(.transformer(expr, env))
+  f <- function(expr){
+    eval_func <- .transformer(expr, env)
+
+    # crayon functions *can* be used, so we use tryCatch()
+    # to give as.character() a chance to work
+    tryCatch(
+      as.character(eval_func),
+      error = function(e) {
+        # if eval_func is a function, provide informative error-message
+        if (is.function(eval_func)) {
+          message <- paste0(
+            "glue cannot interpolate functions into strings.\n",
+            "* object '",
+            expr,
+            "' is a function."
+          )
+
+          stop(message, call. = FALSE)
+        }
+
+        # default stop
+        stop(e)
+      }
+    )
+  }
 
   # Parse any glue strings
   res <- .Call(glue_, unnamed_args, f, .open, .close)
@@ -146,7 +170,7 @@ glue <- function(..., .sep = "", .envir = parent.frame(), .open = "{", .close = 
 #' # Wide values can be truncated
 #' glue_collapse(glue("{1:10}"), width = 5)
 #'
-#' glue_collapse(1:4, ",", last = " and ")
+#' glue_collapse(1:4, ", ", last = " and ")
 #' #> 1, 2, 3 and 4
 #' @export
 glue_collapse <- function(x, sep = "", width = Inf, last = "") {
@@ -211,7 +235,7 @@ collapse <- function(x, sep = "", width = Inf, last = "") {
 
 #' @useDynLib glue trim_
 trim <- function(x) {
-  has_newline <- function(x) grepl("\\n", x)
+  has_newline <- function(x) any(grepl("\\n", x))
   if (length(x) == 0 || !has_newline(x)) {
     return(x)
   }
@@ -264,6 +288,11 @@ as.character.glue <- function(x, ...) {
 #' @export
 `[[.glue` <- function(x, i, ...) {
   as_glue(NextMethod())
+}
+
+#' @export
+`+.glue` <- function(e1, e2) {
+  glue(e1, e2, .envir = parent.frame())
 }
 
 #' @importFrom methods setOldClass

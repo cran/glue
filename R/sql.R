@@ -48,6 +48,7 @@
 #'     AND {`tbl`}.species = {val}
 #'   ", .con = con)
 #'
+#'
 #' # `glue_sql()` can be used in conjuction with parameterized queries using
 #' # `DBI::dbBind()` to provide protection for SQL Injection attacks
 #'  sql <- glue_sql("
@@ -87,7 +88,12 @@
 #' glue_sql("SELECT * FROM {`tbl`} WHERE species IN ({vals*})",
 #'   vals = c("setosa", "versicolor"), .con = con)
 #'
-#' DBI::dbDisconnect(con)
+#' # If you need to reference a table in a different schema use `DBI::Id()` to
+#' # construct the identifiers.
+#' cols <- c("Sepal.Width", "Sepal.Length", "Species")
+#' col_ids <- lapply(cols, function(x) DBI::Id(table="iris", column = x))
+#' values <- c(1, 2, 'Setosa')
+#' glue_sql("INSERT ({values*}) INTO ({`col_ids`*})", .con=con)
 #' @export
 glue_sql <- function(..., .con, .envir = parent.frame(), .na = DBI::SQL("NULL")) {
   DBI::SQL(glue(..., .envir = .envir, .na = .na, .transformer = sql_quote_transformer(.con)))
@@ -110,15 +116,27 @@ sql_quote_transformer <- function(connection) {
     if (is_quoted) {
       regmatches(text, m) <- ""
       res <- eval(parse(text = text, keep.source = FALSE), envir)
-      res <- DBI::dbQuoteIdentifier(conn = connection, res)
+
+      if (length(res) == 1) {
+        res <- DBI::dbQuoteIdentifier(conn = connection, res)
+      } else {
+
+        # Support lists as well
+        res[] <- lapply(res, DBI::dbQuoteIdentifier, conn = connection)
+      }
     } else {
       res <- eval(parse(text = text, keep.source = FALSE), envir)
 
+      # convert objects to characters
+      if (is.object(res) && !inherits(res, "SQL")) {
+        res <- as.character(res)
+      }
+
       # Convert all NA's as needed
       if (any(is.na(res))) {
-        res <- as.list(res)
         res[is.na(res)] <- NA_character_
       }
+
       if(is.character(res)) {
         res <- DBI::dbQuoteString(conn = connection, res)
       }
