@@ -5,7 +5,9 @@
 #' from the first and last lines are automatically trimmed.
 #'
 #' @param .x \[`listish`]\cr An environment, list or data frame used to lookup values.
-#' @param ... \[`expressions`]\cr Expressions string(s) to format, multiple inputs are concatenated together before formatting.
+#' @param ... \[`expressions`]\cr Unnamed arguments are taken to be expressions
+#'     string(s) to format. Multiple inputs are concatenated together before formatting.
+#'     Named arguments are taken to be temporary variables available for substitution.
 #' @param .sep \[`character(1)`: \sQuote{""}]\cr Separator used to separate elements.
 #' @param .envir \[`environment`: `parent.frame()`]\cr Environment to evaluate each expression in. Expressions are
 #'   evaluated from left to right. If `.x` is an environment, the expressions are
@@ -43,6 +45,12 @@
 #'   age = 40,
 #'   anniversary = as.Date("2001-10-12"))
 #'
+#' # `glue()` can also be used in user defined functions
+#' intro <- function(name, profession, country){
+#'   glue("My name is {name}, a {profession}, from {country}")
+#' }
+#' intro("Shelmith", "Senior Data Analyst", "Kenya")
+#' intro("Cate", "Data Scientist", "Kenya")
 #'
 #' # `glue_data()` is useful in magrittr pipes
 #' library(magrittr)
@@ -69,7 +77,7 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
   } else if (is.environment(.x)) {
     parent_env <- .x
   } else {
-    parent_env <- list2env(.x, parent = .envir)
+    parent_env <- list2env(as.list(.x), parent = .envir)
   }
 
   # Capture unevaluated arguments
@@ -152,8 +160,8 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
 
 #' @export
 #' @rdname glue
-glue <- function(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}", .na = "NA",  .transformer = identity_transformer) {
-  glue_data(.x = NULL, ..., .sep = .sep, .envir = .envir, .open = .open, .close = .close, .na = .na, .transformer = .transformer)
+glue <- function(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}", .na = "NA",  .transformer = identity_transformer, .trim = TRUE) {
+  glue_data(.x = NULL, ..., .sep = .sep, .envir = .envir, .open = .open, .close = .close, .na = .na, .transformer = .transformer, .trim = .trim)
 }
 
 #' Collapse a character vector

@@ -48,6 +48,9 @@ describe("glue_sql", {
     expect_identical(glue_sql("{var*}", .con = con, var = "a"), DBI::SQL("'a'"))
     expect_identical(glue_sql("{var*}", .con = con, var = letters[1:5]), DBI::SQL("'a', 'b', 'c', 'd', 'e'"))
   })
+  it('collapses values should return NULL for length zero vector', {
+    expect_identical(glue_sql("{var*}", .con = con, var = character()), DBI::SQL("NULL"))
+  })
   it("should return an SQL NULL by default for missing values", {
     var <- list(NA, NA_character_, NA_real_, NA_integer_)
     expect_identical(glue_sql("x = {var}", .con = con), rep(DBI::SQL("x = NULL"), 4))
@@ -65,6 +68,11 @@ describe("glue_sql", {
   it("should return a quoted date for Dates", {
     var <- as.Date("2019-01-01")
     expect_identical(glue_sql("x = {var}", .con = con), DBI::SQL("x = '2019-01-01'"))
+  })
+
+  it("should quote values from lists properly", {
+    var <- list(1, 2, "three")
+    expect_identical(glue_sql("x = {var}", .con = con), DBI::SQL(c("x = 1", "x = 2", "x = 'three'")))
   })
 })
 
