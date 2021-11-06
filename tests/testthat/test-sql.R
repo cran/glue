@@ -1,5 +1,3 @@
-context("sql")
-
 skip_if_not_installed("DBI")
 skip_if_not_installed("RSQLite")
 
@@ -93,6 +91,14 @@ describe("glue_sql", {
   it("should handle DBI::SQL() elements correctly when collapsing (#191)", {
     expect_identical(glue_sql("x IN ({DBI::SQL(c('a','b'))*})", .con = con), DBI::SQL(paste0("x IN (a, b)")))
   })
+
+  it("should allow whitespace after the *", {
+    x <- 1:3
+    expect_identical(
+      glue_sql(.con = con, "{x* }"),
+      DBI::SQL(paste0("1, 2, 3"))
+    )
+  })
 })
 
 describe("glue_data_sql", {
@@ -102,5 +108,19 @@ describe("glue_data_sql", {
   it("collapses values if succeeded by a *", {
     var <- "foo"
     expect_identical(glue_data_sql(mtcars, "{head(gear)*}", .con = con), DBI::SQL("4, 4, 4, 3, 3, 3"))
+  })
+})
+
+describe("glue_sql_collapse", {
+  it("returns an SQL object", {
+    expect_identical(
+      glue_sql_collapse(character()),
+      DBI::SQL(character())
+    )
+
+    expect_identical(
+      glue_sql_collapse(c("foo", "bar", "baz")),
+      DBI::SQL("foobarbaz")
+    )
   })
 })

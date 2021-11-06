@@ -2,8 +2,8 @@
 #'
 #' SQL databases often have custom quotation syntax for identifiers and strings
 #' which make writing SQL queries error prone and cumbersome to do. `glue_sql()` and
-#' `glue_data_sql()` are analogs to `glue()` and `glue_data()` which handle the
-#' SQL quoting.
+#' `glue_data_sql()` are analogs to [glue()] and [glue_data()] which handle the
+#' SQL quoting. `glue_sql_collapse()` can be used to collapse [DBI::SQL()] objects.
 #'
 #' They automatically quote character results, quote identifiers if the glue
 #' expression is surrounded by backticks '\verb{`}' and do not quote
@@ -11,7 +11,7 @@
 #' column (which should be quoted) pass the data to `glue_sql()` as a
 #' character.
 #'
-#' Returning the result with `DBI::SQL()` will suppress quoting if desired for
+#' Returning the result with [DBI::SQL()] will suppress quoting if desired for
 #' a given value.
 #'
 #' Note [parameterized queries](https://db.rstudio.com/best-practices/run-queries-safely#parameterized-queries)
@@ -22,8 +22,9 @@
 #' collapsed with commas. This is useful for the [SQL IN Operator](https://www.w3schools.com/sql/sql_in.asp)
 #' for instance.
 #' @inheritParams glue
-#' @param .con \[`DBIConnection`]:A DBI connection object obtained from `DBI::dbConnect()`.
-#' @return A `DBI::SQL()` object with the given query.
+#' @seealso [glue_sql_collapse()] to collapse [DBI::SQL()] objects.
+#' @param .con \[`DBIConnection`]:A DBI connection object obtained from [DBI::dbConnect()].
+#' @return A [DBI::SQL()] object with the given query.
 #' @examples
 #' con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
 #' iris2 <- iris
@@ -89,7 +90,7 @@
 #' glue_sql("SELECT * FROM {`tbl`} WHERE species IN ({vals*})",
 #'   vals = c("setosa", "versicolor"), .con = con)
 #'
-#' # If you need to reference a variables from multiple tables use `DBI::Id()`.
+#' # If you need to reference variables from multiple tables use `DBI::Id()`.
 #' # Here we create a new table of nicknames, join the two tables together and
 #' # select columns from both tables. Using `DBI::Id()` and the special
 #' # `glue_sql()` syntax ensures all the table and column identifiers are quoted
@@ -138,15 +139,21 @@ glue_data_sql <- function(.x, ..., .con, .envir = parent.frame(), .na = DBI::SQL
   DBI::SQL(glue_data(.x, ..., .envir = .envir, .na = .na, .transformer = sql_quote_transformer(.con, .na)))
 }
 
+#' @rdname glue_collapse
+#' @export
+glue_sql_collapse <- function(x, sep = "", width = Inf, last = "") {
+  DBI::SQL(glue_collapse(x, sep = sep, width = width, last = last))
+}
+
 sql_quote_transformer <- function(connection, .na) {
   if (is.null(.na)) {
     .na <- DBI::SQL(NA)
   }
 
   function(text, envir) {
-    should_collapse <- grepl("[*]$", text)
+    should_collapse <- grepl("[*][[:space:]]*$", text)
     if (should_collapse) {
-      text <- sub("[*]$", "", text)
+      text <- sub("[*][[:space:]]*$", "", text)
     }
     m <- gregexpr("^`|`$", text)
     is_quoted <- any(m[[1]] != -1)

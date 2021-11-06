@@ -72,7 +72,7 @@ sprintf_transformer <- function(text, envir) {
     format <- substring(regmatches(text, m), 2)
     regmatches(text, m) <- ""
     res <- eval(parse(text = text, keep.source = FALSE), envir)
-    do.call(sprintf, list(glue("%{format}f"), res))
+    do.call(sprintf, list(glue("%{format}"), res))
   } else {
     eval(parse(text = text, keep.source = FALSE), envir)
   }
@@ -81,7 +81,7 @@ sprintf_transformer <- function(text, envir) {
 glue_fmt <- function(..., .envir = parent.frame()) {
   glue(..., .transformer = sprintf_transformer, .envir = .envir)
 }
-glue_fmt("π = {pi:.2}")
+glue_fmt("π = {pi:.3f}")
 
 ## -----------------------------------------------------------------------------
 safely_transformer <- function(otherwise = NA) {

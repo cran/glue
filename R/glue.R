@@ -22,8 +22,14 @@
 #' @param .na \[`character(1)`: \sQuote{NA}]\cr Value to replace NA values
 #'   with. If `NULL` missing values are propagated, that is an `NA` result will
 #'   cause `NA` output. Otherwise the value is replaced by the value of `.na`.
+#' @param .null \[`character(1)`: \sQuote{character()}]\cr Value to replace
+#'   NULL values with. If `character()` whole output is `character()`. If
+#'   `NULL` all NULL values are dropped (as in `paste0()`). Otherwise the
+#'   value is replaced by the value of `.null`.
+#' @param .comment \[`character(1)`: \sQuote{#}]\cr Value to use as the comment
+#'   character.
 #' @param .trim \[`logical(1)`: \sQuote{TRUE}]\cr Whether to trim the input
-#'   template with `trim()` or not.
+#'   template with [trim()] or not.
 #' @seealso <https://www.python.org/dev/peps/pep-0498/> and
 #'   <https://www.python.org/dev/peps/pep-0257/> upon which this is based.
 #' @examples
@@ -53,13 +59,17 @@
 #' intro("Cate", "Data Scientist", "Kenya")
 #'
 #' # `glue_data()` is useful in magrittr pipes
-#' library(magrittr)
+#' if (require(magrittr)) {
+#'
 #' mtcars %>% glue_data("{rownames(.)} has {hp} hp")
 #'
 #' # Or within dplyr pipelines
-#' library(dplyr)
+#' if (require(dplyr)) {
+#'
 #' head(iris) %>%
 #'   mutate(description = glue("This {Species} has a petal length of {Petal.Length}"))
+#'
+#' }}
 #'
 #' # Alternative delimiters can also be used if needed
 #' one <- "1"
@@ -68,8 +78,8 @@
 #' @name glue
 #' @export
 glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
-  .open = "{", .close = "}", .na = "NA", .transformer = identity_transformer,
-  .trim = TRUE) {
+  .open = "{", .close = "}", .na = "NA", .null = character(),
+  .comment = "#", .transformer = identity_transformer, .trim = TRUE) {
 
   if (is.null(.envir)) {
     .envir <- emptyenv()
@@ -92,10 +102,27 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
   env <- bind_args(dots[named], parent_env)
 
   # Concatenate unnamed arguments together
-  unnamed_args <- lapply(which(!named), function(x) eval(call("force", as.symbol(paste0("..", x)))))
+  unnamed_args <- lapply(
+    which(!named),
+    function(x) {
+      # Any evaluation to `NULL` is replaced with `.null`:
+      # - If `.null == character()` then if any output's length is 0 the
+      # whole output should be forced to be `character(0)`.
+      # - If `.null == NULL` then it is allowed and any such argument will be
+      # silently dropped.
+      # - In other cases output is treated as it was evaluated to `.null`.
+      eval(call("force", as.symbol(paste0("..", x)))) %||% .null
+    }
+  )
+  unnamed_args <- drop_null(unnamed_args)
+
+  if (length(unnamed_args) == 0) {
+    # This is equivalent to `paste0(NULL)`
+    return(as_glue(character(0)))
+  }
 
   lengths <- lengths(unnamed_args)
-  if (any(lengths == 0) || length(unnamed_args) < sum(!named)) {
+  if (any(lengths == 0)) {
     return(as_glue(character(0)))
   }
   if (any(lengths != 1)) {
@@ -115,12 +142,14 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
   }
 
   f <- function(expr){
-    eval_func <- .transformer(expr, env)
+    eval_func <- .transformer(expr, env) %||% .null
 
     # crayon functions *can* be used, so we use tryCatch()
     # to give as.character() a chance to work
     tryCatch(
-      as.character(eval_func),
+      # Output can be `NULL` only if `.null` is `NULL`. Then it should be
+      # returned as is, because `as.character(NULL)` is `character()`.
+      if (is.null(eval_func)) NULL else as.character(eval_func),
       error = function(e) {
         # if eval_func is a function, provide informative error-message
         if (is.function(eval_func)) {
@@ -141,7 +170,9 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
   }
 
   # Parse any glue strings
-  res <- .Call(glue_, unnamed_args, f, .open, .close)
+  res <- .Call(glue_, unnamed_args, f, .open, .close, .comment)
+
+  res <- drop_null(res)
 
   if (any(lengths(res) == 0)) {
     return(as_glue(character(0)))
@@ -164,13 +195,16 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
 
 #' @export
 #' @rdname glue
-glue <- function(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}", .na = "NA",  .transformer = identity_transformer, .trim = TRUE) {
-  glue_data(.x = NULL, ..., .sep = .sep, .envir = .envir, .open = .open, .close = .close, .na = .na, .transformer = .transformer, .trim = .trim)
+glue <- function(..., .sep = "", .envir = parent.frame(), .open = "{", .close = "}", .na = "NA", .null = character(), .comment = "#", .transformer = identity_transformer, .trim = TRUE) {
+  glue_data(.x = NULL, ..., .sep = .sep, .envir = .envir, .open = .open, .close = .close, .na = .na, .null = .null, .comment = .comment, .transformer = .transformer, .trim = .trim)
 }
 
 #' Collapse a character vector
 #'
-#' Collapses a character vector of any length into a length 1 vector.
+#' `glue_collapse()` collapses a character vector of any length into a length 1 vector.
+#' `glue_sql_collapse()` does the same but returns a `[DBI::SQL()]`
+#' object rather than a glue object.
+#'
 #' @param x The character vector to collapse.
 #' @param width The maximum string width before truncating with `...`.
 #' @param last String used to separate the last two items if `x` has at least
@@ -208,19 +242,10 @@ glue_collapse <- function(x, sep = "", width = Inf, last = "") {
   as_glue(x)
 }
 
-# nocov start
-#' @rdname glue-deprecated
-#' @export
-collapse <- function(x, sep = "", width = Inf, last = "") {
-  .Deprecated("glue_collapse", package = "glue")
-  glue_collapse(x, sep, width, last)
-}
-# nocov end
-
 #' Trim a character vector
 #'
 #' This trims a character vector according to the trimming rules used by glue.
-#' These follow similar rules to [Python Docstrings](https://www.python.org/dev/peps/pep-0257),
+#' These follow similar rules to [Python Docstrings](https://www.python.org/dev/peps/pep-0257/),
 #' with the following features.
 #' - Leading and trailing whitespace from the first and last lines is removed.
 #' - A uniform amount of indentation is stripped from the second line on, equal
@@ -258,7 +283,9 @@ trim <- function(x) {
 print.glue <- function(x, ..., sep = "\n") {
   x[is.na(x)] <- style_na(x[is.na(x)])
 
-  cat(x, ..., sep = sep)
+  if (length(x) > 0) {
+    cat(x, ..., sep = sep)
+  }
 
   invisible(x)
 }

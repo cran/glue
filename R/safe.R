@@ -1,6 +1,6 @@
 #' Safely interpolate strings
 #'
-#' `glue_safe()` and `glue_data_safe()` differ from `glue()` and `glue_data()`
+#' `glue_safe()` and `glue_data_safe()` differ from [glue()] and [glue_data()]
 #' in that the safe versions only look up symbols from an environment use
 #' [get()] they do not execute any R code. This makes them suitable when used
 #' with untrusted input, such as inputs in a shiny application, where using the
@@ -18,11 +18,19 @@
 #'
 #' rm("1 + 1")
 glue_safe <- function(..., .envir = parent.frame()) {
-  glue(..., .envir = .envir, .transformer = base::get)
+  glue(..., .envir = .envir, .transformer = get_transformer)
 }
 
 #' @rdname glue_safe
 #' @export
 glue_data_safe <- function(.x, ..., .envir = parent.frame()) {
-  glue_data(.x, ..., .envir = .envir, .transformer = base::get)
+  glue_data(.x, ..., .envir = .envir, .transformer = get_transformer)
+}
+
+get_transformer <- function(text, envir) {
+  if (!exists(text, envir = envir)) {
+    stop("object '", text, "' not found", call. = FALSE)
+  } else {
+    get(text, envir = envir)
+  }
 }

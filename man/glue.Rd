@@ -13,6 +13,8 @@ glue_data(
   .open = "{",
   .close = "}",
   .na = "NA",
+  .null = character(),
+  .comment = "#",
   .transformer = identity_transformer,
   .trim = TRUE
 )
@@ -24,6 +26,8 @@ glue(
   .open = "{",
   .close = "}",
   .na = "NA",
+  .null = character(),
+  .comment = "#",
   .transformer = identity_transformer,
   .trim = TRUE
 )
@@ -51,12 +55,20 @@ full delimiter escapes it.}
 with. If \code{NULL} missing values are propagated, that is an \code{NA} result will
 cause \code{NA} output. Otherwise the value is replaced by the value of \code{.na}.}
 
+\item{.null}{[\code{character(1)}: \sQuote{character()}]\cr Value to replace
+NULL values with. If \code{character()} whole output is \code{character()}. If
+\code{NULL} all NULL values are dropped (as in \code{paste0()}). Otherwise the
+value is replaced by the value of \code{.null}.}
+
+\item{.comment}{[\code{character(1)}: \sQuote{#}]\cr Value to use as the comment
+character.}
+
 \item{.transformer}{[\verb{function]}\cr A function taking three parameters \code{code}, \code{envir} and
 \code{data} used to transform the output of each block before during or after
 evaluation. For example transformers see \code{vignette("transformers")}.}
 
 \item{.trim}{[\code{logical(1)}: \sQuote{TRUE}]\cr Whether to trim the input
-template with \code{trim()} or not.}
+template with \code{\link[=trim]{trim()}} or not.}
 }
 \description{
 Expressions enclosed by braces will be evaluated as R code. Long strings are
@@ -90,13 +102,17 @@ intro("Shelmith", "Senior Data Analyst", "Kenya")
 intro("Cate", "Data Scientist", "Kenya")
 
 # `glue_data()` is useful in magrittr pipes
-library(magrittr)
+if (require(magrittr)) {
+
 mtcars \%>\% glue_data("{rownames(.)} has {hp} hp")
 
 # Or within dplyr pipelines
-library(dplyr)
+if (require(dplyr)) {
+
 head(iris) \%>\%
   mutate(description = glue("This {Species} has a petal length of {Petal.Length}"))
+
+}}
 
 # Alternative delimiters can also be used if needed
 one <- "1"

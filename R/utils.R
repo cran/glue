@@ -66,6 +66,10 @@ na_rows <- function(res) {
 
 "%||%" <- function(x, y) if (is.null(x)) y else x # nocov
 
+drop_null <- function(x) {
+  x[!vapply(x, is.null, logical(1))]
+}
+
 # A version of delayedAssign which does _not_ use substitute
 delayed_assign <- function(x, value, eval.env = parent.frame(1), assign.env = parent.frame(1)) {
   do.call(delayedAssign, list(x, value, eval.env, assign.env))
@@ -77,4 +81,10 @@ compare.glue <- function(x, y, ...) {
     class(x) <- NULL
   }
   NextMethod("compare")
+}
+
+## @export
+compare_proxy.glue <- function(x, path = "x") {
+  class(x) <- NULL
+  NextMethod("compare_proxy")
 }
