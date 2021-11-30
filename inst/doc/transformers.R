@@ -49,6 +49,11 @@ command <- glue_sh("cat {filename}")
 command
 system(command)
 
+## ----include = FALSE----------------------------------------------------------
+if (file.exists("test")) {
+  unlink("test")
+}
+
 ## ---- eval = require("emo")---------------------------------------------------
 #  emoji_transformer <- function(text, envir) {
 #    if (grepl("[*]$", text)) {

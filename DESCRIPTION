@@ -1,9 +1,11 @@
 Package: glue
 Title: Interpreted String Literals
-Version: 1.5.0
+Version: 1.5.1
 Authors@R: c(
-    person("Jim", "Hester", , "jim.hester@rstudio.com", role = c("aut", "cre"),
+    person("Jim", "Hester", role = "aut",
            comment = c(ORCID = "0000-0002-2739-7082")),
+    person("Jennifer", "Bryan", , "jenny@rstudio.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-6983-2759")),
     person("RStudio", role = c("cph", "fnd"))
   )
 Description: An implementation of interpreted string literals, inspired by
@@ -22,14 +24,15 @@ Suggests: covr, crayon, DBI, dplyr, forcats, ggplot2, knitr, magrittr,
         testthat, vctrs (>= 0.3.0), waldo, withr
 VignetteBuilder: knitr
 ByteCompile: true
-Config/Needs/website: tidyverse/tidytemplate
+Config/Needs/website: hadley/emo, tidyverse/tidytemplate
 Config/testthat/edition: 3
 Encoding: UTF-8
 RoxygenNote: 7.1.2
 NeedsCompilation: yes
-Packaged: 2021-11-01 17:02:09 UTC; jhester
-Author: Jim Hester [aut, cre] (<https://orcid.org/0000-0002-2739-7082>),
+Packaged: 2021-11-30 00:39:30 UTC; jhester
+Author: Jim Hester [aut] (<https://orcid.org/0000-0002-2739-7082>),
+  Jennifer Bryan [aut, cre] (<https://orcid.org/0000-0002-6983-2759>),
   RStudio [cph, fnd]
-Maintainer: Jim Hester <jim.hester@rstudio.com>
+Maintainer: Jennifer Bryan <jenny@rstudio.com>
 Repository: CRAN
-Date/Publication: 2021-11-07 00:50:07 UTC
+Date/Publication: 2021-11-30 09:50:07 UTC
