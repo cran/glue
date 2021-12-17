@@ -1,3 +1,9 @@
+# glue 1.6.0
+
+* `glue()`, `glue_data()`, `glue_col()`, and `glue_data_col()` gain a new `.literal` argument, which controls how quotes and the comment character are treated when parsing the expression string (#235). This is mostly useful when using a custom transformer.
+
+* Trailing whitespace-only lines don't interfere with indentation (#247).
+
 # glue 1.5.1
 
 * Jennifer Bryan is now the maintainer.
@@ -95,8 +101,8 @@
 ## Breaking changes
 
 * The `evaluate()` function has been removed. Changes elsewhere in glue made
-  the implementation trivial so it was removed for clarities sake. Previous
-  uses can be replaced by `eval(parse(text = text), envir)`.
+  the implementation trivial so it was removed for the sake of clarity.
+  Previous uses can be replaced by `eval(parse(text = text), envir)`.
 
 * `collapse()` has been renamed to `glue_collapse()` to avoid namespace
   collisions with `dplyr::collapse()`.
