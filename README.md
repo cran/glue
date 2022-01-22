@@ -1,13 +1,14 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# glue <a href='https:/glue.tidyverse.org'><img src='man/figures/logo.png' align="right" height="139" /></a>
+# glue <a href='https://glue.tidyverse.org'><img src='man/figures/logo.png' align="right" height="139" /></a>
+
+<!-- badges: start -->
 
 [![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/glue)](https://cran.r-project.org/package=glue)
-[![R build
-status](https://github.com/tidyverse/glue/workflows/R-CMD-check/badge.svg)](https://github.com/tidyverse/glue/actions)
-[![Coverage
-Status](https://img.shields.io/codecov/c/github/tidyverse/glue/master.svg)](https://codecov.io/github/tidyverse/glue?branch=master)
+[![R-CMD-check](https://github.com/tidyverse/glue/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tidyverse/glue/actions/workflows/R-CMD-check.yaml)
+[![test-coverage](https://github.com/tidyverse/glue/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/tidyverse/glue/actions/workflows/test-coverage.yaml)
+<!-- badges: end -->
 
 ## Overview
 
@@ -17,14 +18,23 @@ braces which are then evaluated and inserted into the argument string.
 
 ## Installation
 
-``` r
-# Install the released version from CRAN:
-install.packages("glue")
+<div class=".pkgdown-release">
 
-# Install the development version from GitHub:
-# install.packages("devtools")
+``` r
+# Install released version from CRAN
+install.packages("glue")
+```
+
+</div>
+
+<div class=".pkgdown-devel">
+
+``` r
+# Install development version from GitHub
 devtools::install_github("tidyverse/glue")
 ```
+
+</div>
 
 ## Usage
 
@@ -35,6 +45,20 @@ library(glue)
 name <- "Fred"
 glue('My name is {name}.')
 #> My name is Fred.
+```
+
+Note that `glue::glue()` is also made available via
+`stringr::str_glue()`. So if you’ve already attached stringr (or perhaps
+the whole tidyverse), you can access `glue()` like so:
+
+``` r
+library(stringr) # or library(tidyverse)
+
+stringr_fcn <- "`stringr::str_glue()`"
+glue_fcn    <- "`glue::glue()`"
+
+str_glue('{stringr_fcn} is essentially an alias for {glue_fcn}.')
+#> `stringr::str_glue()` is essentially an alias for `glue::glue()`.
 ```
 
 ##### Long strings are broken by line and concatenated together.
