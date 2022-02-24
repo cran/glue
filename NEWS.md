@@ -1,3 +1,7 @@
+# glue 1.6.2
+
+* Modify a test for better forward compatibility with R.
+
 # glue 1.6.1
 
 * glue now registers its custom knitr engines in a way that is more robust to namespace-loading edge cases that can arise during package installation (#254).
