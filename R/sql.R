@@ -1,5 +1,6 @@
 #' Interpolate strings with SQL escaping
 #'
+#' @description
 #' SQL databases often have custom quotation syntax for identifiers and strings
 #' which make writing SQL queries error prone and cumbersome to do. `glue_sql()` and
 #' `glue_data_sql()` are analogs to [glue()] and [glue_data()] which handle the
@@ -14,7 +15,7 @@
 #' Returning the result with [DBI::SQL()] will suppress quoting if desired for
 #' a given value.
 #'
-#' Note [parameterized queries](https://db.rstudio.com/best-practices/run-queries-safely#parameterized-queries)
+#' Note [parameterized queries](https://solutions.posit.co/connections/db/best-practices/run-queries-safely/#parameterized-queries)
 #' are generally the safest and most efficient way to pass user defined
 #' values in a query, however not every database driver supports them.
 #'
@@ -25,6 +26,10 @@
 #' @seealso [glue_sql_collapse()] to collapse [DBI::SQL()] objects.
 #' @param .con \[`DBIConnection`]: A DBI connection object obtained from
 #'   [DBI::dbConnect()].
+#' @param .na \[`character(1)`: `DBI::SQL("NULL")`]\cr Value to replace
+#'   `NA` values with. If `NULL` missing values are propagated, that is an `NA`
+#'   result will cause `NA` output. Otherwise the value is replaced by the
+#'   value of `.na`.
 #' @return A [DBI::SQL()] object with the given query.
 #' @examplesIf requireNamespace("DBI", quietly = TRUE) && requireNamespace("RSQLite", quietly = TRUE)
 #' con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
@@ -109,13 +114,13 @@
 #' DBI::dbWriteTable(con, nicknames_db, nicknames)
 #'
 #' cols <- list(
-#'   DBI::Id(table = iris_db, column = "sepal_length"),
-#'   DBI::Id(table = iris_db, column = "sepal_width"),
-#'   DBI::Id(table = nicknames_db, column = "nickname")
+#'   DBI::Id(iris_db, "sepal_length"),
+#'   DBI::Id(iris_db, "sepal_width"),
+#'   DBI::Id(nicknames_db, "nickname")
 #' )
 #'
-#' iris_species <- DBI::Id(table = iris_db, column = "species")
-#' nicknames_species <- DBI::Id(table = nicknames_db, column = "species")
+#' iris_species <- DBI::Id(iris_db, "species")
+#' nicknames_species <- DBI::Id(nicknames_db, "species")
 #'
 #' query <- glue_sql("
 #'   SELECT {`cols`*}
@@ -130,14 +135,61 @@
 #'
 #' DBI::dbDisconnect(con)
 #' @export
-glue_sql <- function(..., .con, .envir = parent.frame(), .na = DBI::SQL("NULL")) {
-  DBI::SQL(glue(..., .envir = .envir, .na = .na, .transformer = sql_quote_transformer(.con, .na)))
+glue_sql <- function(...,
+                     .con,
+                     .sep = "",
+                     .envir = parent.frame(),
+                     .open = "{",
+                     .close = "}",
+                     .na = DBI::SQL("NULL"),
+                     .null = character(),
+                     .comment = "#",
+                     .literal = FALSE,
+                     .trim = TRUE
+                     ) {
+  DBI::SQL(glue(
+    ...,
+    .sep = .sep,
+    .envir = .envir,
+    .open = .open,
+    .close = .close,
+    .na = .na,
+    .null = .null,
+    .comment = .comment,
+    .literal = .literal,
+    .transformer = sql_quote_transformer(.con, .na),
+    .trim = .trim
+  ))
 }
 
 #' @rdname glue_sql
 #' @export
-glue_data_sql <- function(.x, ..., .con, .envir = parent.frame(), .na = DBI::SQL("NULL")) {
-  DBI::SQL(glue_data(.x, ..., .envir = .envir, .na = .na, .transformer = sql_quote_transformer(.con, .na)))
+glue_data_sql <- function(.x,
+                          ...,
+                          .con,
+                          .sep = "",
+                          .envir = parent.frame(),
+                          .open = "{",
+                          .close = "}",
+                          .na = DBI::SQL("NULL"),
+                          .null = character(),
+                          .comment = "#",
+                          .literal = FALSE,
+                          .trim = TRUE) {
+  DBI::SQL(glue_data(
+    .x,
+    ...,
+    .sep = .sep,
+    .envir = .envir,
+    .open = .open,
+    .close = .close,
+    .na = .na,
+    .null = .null,
+    .comment = .comment,
+    .literal = .literal,
+    .transformer = sql_quote_transformer(.con, .na),
+    .trim = .trim
+  ))
 }
 
 #' @rdname glue_collapse
@@ -160,7 +212,7 @@ sql_quote_transformer <- function(connection, .na) {
     is_quoted <- any(m[[1]] != -1)
     if (is_quoted) {
       regmatches(text, m) <- ""
-      res <- eval(parse(text = text, keep.source = FALSE), envir)
+      res <- identity_transformer(text, envir)
 
       if (length(res) == 1) {
         res <- DBI::dbQuoteIdentifier(conn = connection, res)
@@ -170,37 +222,30 @@ sql_quote_transformer <- function(connection, .na) {
         res[] <- lapply(res, DBI::dbQuoteIdentifier, conn = connection)
       }
     } else {
-      res <- eval(parse(text = text, keep.source = FALSE), envir)
+      res <- identity_transformer(text, envir)
+      if (length(res) == 0L) {
+        if (should_collapse) {
+          return("")
+        } else {
+          return(NULL)
+        }
+      }
       if (inherits(res, "SQL")) {
         if (should_collapse) {
           res <- glue_collapse(res, ", ")
         }
-        if (length(res) == 0L) {
-          res <- DBI::SQL("NULL")
-        }
         return(res)
       }
-
-      # convert objects to characters
-      is_object <- is.object(res)
-      if (is_object) {
-        res <- as.character(res)
-      }
-
-      is_na <- is.na(res)
-      if (any(is_na)) {
-        res[is_na] <- rep(list(.na), sum(is_na))
-      }
-
-      is_char <- vapply(res, function(x) !is.na(x) && is.character(x), logical(1))
-      res[is_char] <- lapply(res[is_char], function(x) DBI::dbQuoteLiteral(conn = connection, x))
-      res[!is_char] <- lapply(res[!is_char], function(x) DBI::SQL(conn = connection, x))
     }
+
+    if (is.list(res)) {
+      res <- unlist(lapply(res, DBI::dbQuoteLiteral, conn = connection))
+    } else {
+      res <- DBI::dbQuoteLiteral(connection, res)
+    }
+
     if (should_collapse) {
       res <- glue_collapse(res, ", ")
-    }
-    if (length(res) == 0L) {
-      res <- DBI::SQL("NULL")
     }
     res
   }

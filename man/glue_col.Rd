@@ -12,7 +12,10 @@ glue_data_col(.x, ..., .envir = parent.frame(), .na = "NA", .literal = FALSE)
 \arguments{
 \item{...}{[\code{expressions}]\cr Unnamed arguments are taken to be expression
 string(s) to format. Multiple inputs are concatenated together before formatting.
-Named arguments are taken to be temporary variables available for substitution.}
+Named arguments are taken to be temporary variables available for substitution.
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{For `glue_data()`, elements in `...` override the values in `.x`.
+}\if{html}{\out{</div>}}}
 
 \item{.envir}{[\code{environment}: \code{parent.frame()}]\cr Environment to evaluate each expression in. Expressions are
 evaluated from left to right. If \code{.x} is an environment, the expressions are
@@ -30,17 +33,24 @@ syntactic elements), when parsing the expression string. Setting \code{.literal 
 
 \item{.x}{[\code{listish}]\cr An environment, list, or data frame used to lookup values.}
 }
+\value{
+A glue object, as created by \code{\link[=as_glue]{as_glue()}}.
+}
 \description{
 The \link[crayon:crayon]{crayon} package defines a number of functions used to
 color terminal output. \code{glue_col()} and \code{glue_data_col()} functions provide
 additional syntax to make using these functions in glue strings easier.
 
-Using the following syntax will apply the function \code{\link[crayon:crayon]{crayon::blue()}} to the text 'foo bar'.\preformatted{\{blue foo bar\}
-}
+Using the following syntax will apply the function \code{\link[crayon:crayon]{crayon::blue()}} to the text 'foo bar'.
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{\{blue foo bar\}
+}\if{html}{\out{</div>}}
 
 If you want an expression to be evaluated, simply place that in a normal brace
-expression (these can be nested).\preformatted{\{blue 1 + 1 = \{1 + 1\}\}
-}
+expression (these can be nested).
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{\{blue 1 + 1 = \{1 + 1\}\}
+}\if{html}{\out{</div>}}
 
 If the text you want to color contains, e.g., an unpaired quote or a comment
 character, specify \code{.literal = TRUE}.
