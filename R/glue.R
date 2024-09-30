@@ -6,10 +6,10 @@
 #'
 #' @param .x \[`listish`]\cr An environment, list, or data frame used to lookup values.
 #' @param ... \[`expressions`]\cr Unnamed arguments are taken to be expression
-#'     string(s) to format. Multiple inputs are concatenated together before formatting.
-#'     Named arguments are taken to be temporary variables available for substitution.
+#'   string(s) to format. Multiple inputs are concatenated together before formatting.
+#'   Named arguments are taken to be temporary variables available for substitution.
 #'
-#'     For `glue_data()`, elements in `...` override the values in `.x`.
+#'   For `glue_data()`, elements in `...` override the values in `.x`.
 #' @param .sep \[`character(1)`: \sQuote{""}]\cr Separator used to separate elements.
 #' @param .envir \[`environment`: `parent.frame()`]\cr Environment to evaluate each expression in. Expressions are
 #'   evaluated from left to right. If `.x` is an environment, the expressions are
@@ -18,7 +18,7 @@
 #'   full delimiter escapes it.
 #' @param .close \[`character(1)`: \sQuote{\\\}}]\cr The closing delimiter. Doubling the
 #'   full delimiter escapes it.
-#' @param .transformer \[`function]`\cr A function taking two arguments, `text`
+#' @param .transformer \[`function`]\cr A function taking two arguments, `text`
 #'   and `envir`, where `text` is the unparsed string inside the glue block and
 #'   `envir` is the execution environment. A `.transformer` lets you modify a
 #'   glue block before, during, or after evaluation, allowing you to create your
@@ -97,6 +97,7 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
 
   # Perform all evaluations in a temporary environment
   if (is.null(.x)) {
+    stopifnot(is.environment(.envir))
     parent_env <- .envir
   } else if (is.environment(.x)) {
     parent_env <- .x
@@ -106,24 +107,19 @@ glue_data <- function(.x, ..., .sep = "", .envir = parent.frame(),
 
   # Capture unevaluated arguments
   dots <- eval(substitute(alist(...)))
+
+  # Trim off last argument if its empty so you can use a trailing comma
+  n <- length(dots)
+  if (n > 0 && identical(dots[[n]], quote(expr = ))) {
+    dots <- dots[-n]
+  }
   named <- has_names(dots)
 
   # Evaluate named arguments, add results to environment
   env <- bind_args(dots[named], parent_env)
 
   # Concatenate unnamed arguments together
-  unnamed_args <- lapply(
-    which(!named),
-    function(x) {
-      # Any evaluation to `NULL` is replaced with `.null`:
-      # - If `.null == character()` then if any output's length is 0 the
-      # whole output should be forced to be `character(0)`.
-      # - If `.null == NULL` then it is allowed and any such argument will be
-      # silently dropped.
-      # - In other cases output is treated as it was evaluated to `.null`.
-      eval(call("force", as.symbol(paste0("..", x)))) %||% .null
-    }
-  )
+  unnamed_args <- lapply(which(!named), function(x) ...elt(x) %||% .null)
   unnamed_args <- drop_null(unnamed_args)
 
   if (length(unnamed_args) == 0) {
@@ -372,12 +368,3 @@ as.character.glue <- function(x, ...) {
 
 #' @importFrom methods setOldClass
 setOldClass(c("glue", "character"))
-
-
-#' Deprecated Functions
-#'
-#' These functions are Deprecated in this release of glue, they will be removed
-#' in a future version.
-#' @name glue-deprecated
-#' @keywords internal
-NULL

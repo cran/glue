@@ -39,8 +39,7 @@ glue_data_sql(
 string(s) to format. Multiple inputs are concatenated together before formatting.
 Named arguments are taken to be temporary variables available for substitution.
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{For `glue_data()`, elements in `...` override the values in `.x`.
-}\if{html}{\out{</div>}}}
+For \code{glue_data()}, elements in \code{...} override the values in \code{.x}.}
 
 \item{.con}{[\code{DBIConnection}]: A DBI connection object obtained from
 \code{\link[DBI:dbConnect]{DBI::dbConnect()}}.}
@@ -104,8 +103,9 @@ are generally the safest and most efficient way to pass user defined
 values in a query, however not every database driver supports them.
 
 If you place a \code{*} at the end of a glue expression the values will be
-collapsed with commas. This is useful for the \href{https://www.w3schools.com/sql/sql_in.asp}{SQL IN Operator}
-for instance.
+collapsed with commas, or if there are no values, produce \code{NULL}.
+This is useful for (e.g.) the
+\href{https://www.w3schools.com/sql/sql_in.asp}{SQL IN Operator}.
 }
 \examples{
 \dontshow{if (requireNamespace("DBI", quietly = TRUE) && requireNamespace("RSQLite", quietly = TRUE)) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
