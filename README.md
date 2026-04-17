@@ -1,5 +1,6 @@
 
-<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+<!-- README.md is generated from README.qmd. Please edit that file -->
 
 # glue <a href="https://glue.tidyverse.org"><img src="man/figures/logo.png" align="right" height="138" alt="glue website" /></a>
 
@@ -7,7 +8,8 @@
 
 [![CRAN_Status_Badge](https://www.r-pkg.org/badges/version/glue)](https://cran.r-project.org/package=glue)
 [![R-CMD-check](https://github.com/tidyverse/glue/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tidyverse/glue/actions/workflows/R-CMD-check.yaml)
-[![test-coverage](https://github.com/tidyverse/glue/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/tidyverse/glue/actions/workflows/test-coverage.yaml)
+[![Codecov test
+coverage](https://codecov.io/gh/tidyverse/glue/graph/badge.svg)](https://app.codecov.io/gh/tidyverse/glue)
 <!-- badges: end -->
 
 glue offers interpreted string literals that are small, fast, and
@@ -16,7 +18,7 @@ braces, which are then evaluated and inserted into the string.
 
 ## Installation
 
-<div class=".pkgdown-release">
+<div class="pkgdown-release">
 
 ``` r
 # Install released version from CRAN
@@ -25,7 +27,7 @@ install.packages("glue")
 
 </div>
 
-<div class=".pkgdown-devel">
+<div class="pkgdown-devel">
 
 ``` r
 # Install development version from GitHub
@@ -129,12 +131,12 @@ foo <- function() {
   glue("
     A formatted string
     Can have multiple lines
-      with additional indention preserved")
+      with additional indentation preserved")
 }
 foo()
 #> A formatted string
 #> Can have multiple lines
-#>   with additional indention preserved
+#>   with additional indentation preserved
 ```
 
 The leading whitespace that is common to all 3 lines is absent from the

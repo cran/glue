@@ -34,6 +34,7 @@ named_list_to_items <- function(x) {
 named_list_to_items(sw_meta)
 
 ## ----error = TRUE-------------------------------------------------------------
+try({
 my_glue_WRONG <- function(...) {
   glue(..., .open = "<<", .close = ">>")
 }
@@ -43,9 +44,10 @@ named_list_to_items_WRONG <- function(x) {
 }
 
 named_list_to_items_WRONG(sw_meta)
+})
 
 ## ----eval = FALSE-------------------------------------------------------------
-#  glue(..., .envir = parent.frame(), ...)
+# glue(..., .envir = parent.frame(), ...)
 
 ## -----------------------------------------------------------------------------
 x <- 0

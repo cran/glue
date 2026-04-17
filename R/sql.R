@@ -136,18 +136,23 @@
 #'
 #' DBI::dbDisconnect(con)
 #' @export
-glue_sql <- function(...,
-                     .con,
-                     .sep = "",
-                     .envir = parent.frame(),
-                     .open = "{",
-                     .close = "}",
-                     .na = DBI::SQL("NULL"),
-                     .null = character(),
-                     .comment = "#",
-                     .literal = FALSE,
-                     .trim = TRUE
-                     ) {
+glue_sql <- function(
+  ...,
+  .con,
+  .sep = "",
+  .envir = parent.frame(),
+  .open = "{",
+  .close = "}",
+  .na = DBI::SQL("NULL"),
+  .null = character(),
+  .comment = "#",
+  .literal = FALSE,
+  .trim = TRUE
+) {
+  if (missing(.con)) {
+    stop("`.con` is absent but must be supplied.")
+  }
+
   DBI::SQL(glue(
     ...,
     .sep = .sep,
@@ -165,18 +170,24 @@ glue_sql <- function(...,
 
 #' @rdname glue_sql
 #' @export
-glue_data_sql <- function(.x,
-                          ...,
-                          .con,
-                          .sep = "",
-                          .envir = parent.frame(),
-                          .open = "{",
-                          .close = "}",
-                          .na = DBI::SQL("NULL"),
-                          .null = character(),
-                          .comment = "#",
-                          .literal = FALSE,
-                          .trim = TRUE) {
+glue_data_sql <- function(
+  .x,
+  ...,
+  .con,
+  .sep = "",
+  .envir = parent.frame(),
+  .open = "{",
+  .close = "}",
+  .na = DBI::SQL("NULL"),
+  .null = character(),
+  .comment = "#",
+  .literal = FALSE,
+  .trim = TRUE
+) {
+  if (missing(.con)) {
+    stop("`.con` is absent but must be supplied.")
+  }
+
   DBI::SQL(glue_data(
     .x,
     ...,
@@ -218,7 +229,6 @@ sql_quote_transformer <- function(connection, .na) {
       if (length(res) == 1) {
         res <- DBI::dbQuoteIdentifier(conn = connection, res)
       } else {
-
         # Support lists as well
         res[] <- lapply(res, DBI::dbQuoteIdentifier, conn = connection)
       }

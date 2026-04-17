@@ -19,7 +19,7 @@ glue("Release was on a {format(release_date, '%A')}.")
 glue("
   A formatted string
   Can have multiple lines
-    with additional indention preserved
+    with additional indentation preserved
   "
 )
 
@@ -28,7 +28,7 @@ foo <- function() {
   glue("
     A formatted string
     Can have multiple lines
-      with additional indention preserved")
+      with additional indentation preserved")
 }
 foo()
 
@@ -82,7 +82,7 @@ fn_def <- "
 glue(fn_def, NAME = "my_function", .open = "<<", .close = ">>")
 
 ## ----eval = FALSE-------------------------------------------------------------
-#  glue(..., .envir = parent.frame())
+# glue(..., .envir = parent.frame())
 
 ## -----------------------------------------------------------------------------
 x <- "the caller environment"

@@ -1,6 +1,10 @@
+# glue 1.8.1
+
+* The `glue` knitr engine handles multiline chunks now (#319).
+
 # glue 1.8.0
 
-* glue has a two new articles:
+* glue has two new articles:
   - "Get started", with contributions from @stephhazlitt and @BrennanAntone
     (#137, #170, #332).
   - How to write a function that wraps glue (#281).
